@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f0f2fa">
+  <meta name="description" content="時間割、持ち物、宿題、忘れ物メモをまとめて管理するアプリ">
+  <title>時間割ノート</title>
+  <link id="manifestLink" rel="manifest">
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #e7e9f0;
+      --surface: #f7f8fd;
+      --surface-2: #eef0f8;
+      --ink: #262a33;
+      --muted: #69707d;
+      --line: #d7dae5;
+      --accent: #cfe8fc;
+      --accent-strong: #9fcdf4;
+      --shadow: 0 9px 32px rgba(31, 39, 60, .16);
+      --pink: #ffe1e2;
+      --blue: #ddecff;
+      --purple: #eee5ff;
+      --yellow: #fff0de;
+      --green: #e4f5df;
+      --gray: #f1f1f1;
+      --cyan: #d9f7f8;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--page); }
+    body { margin: 0; color: var(--ink); background: var(--page); min-height: 100vh; }
+    button, input, select, textarea { font: inherit; }
+    button { color: inherit; cursor: pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #77b6f1; outline-offset: 2px; }
+    .app-shell { width: min(100%, 880px); min-height: 100dvh; margin: 0 auto; background: var(--surface); position: relative; box-shadow: 0 0 0 1px rgba(40,48,67,.05); overflow: clip; }
+    .topbar { height: 64px; display: flex; align-items: center; gap: 10px; padding: 0 17px; background: #eef0f8; border-bottom: 1px solid #e4e6ef; position: sticky; top: 0; z-index: 15; }
+    .icon-button { border: 0; background: transparent; width: 35px; height: 38px; padding: 0; border-radius: 10px; display: inline-grid; place-items: center; flex: 0 0 auto; color: #4f5664; }
+    .icon-button:hover { background: #e0e5f1; }
+    .icon-button svg { width: 21px; height: 21px; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .month-select { border: 0; background: transparent; font-size: 17px; font-weight: 700; padding: 8px 3px; min-width: 72px; outline-offset: 1px; color: var(--ink); }
+    .top-spacer { flex: 1; }
+    .today-icon { border: 1.5px solid #7a8392; border-radius: 5px; width: 21px; height: 22px; position: relative; display: inline-grid; place-items: center; font-size: 10px; font-weight: 750; background: #fafbff; color: #5a6271; }
+    .today-icon::before { content: ""; height: 4px; position: absolute; top: -3px; left: 3px; right: 3px; border-radius: 3px; background: #828b99; }
+    .check-wrap { position: relative; }
+    .tiny-badge { position: absolute; top: 0; right: 0; transform: translate(34%,-16%); border: 2px solid #eef0f8; border-radius: 100px; min-width: 17px; height: 17px; line-height: 13px; text-align: center; font-size: 9px; color: #fff; background: #e2a92b; padding: 0 3px; }
+    .avatar { width: 29px; height: 29px; border-radius: 50%; background: #aecaf7; position: relative; overflow: visible; display: inline-grid; place-items: center; }
+    .avatar::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: #3677e0; position: absolute; top: 4px; }
+    .avatar::after { content: ""; width: 19px; height: 10px; border-radius: 12px 12px 7px 7px; background: #3677e0; position: absolute; bottom: 3px; }
+    .warning-dot { position: absolute; right: -4px; bottom: -3px; width: 14px; height: 14px; border: 1px solid #f6c442; background: #f5c23d; color: #574515; font-size: 9px; font-weight: 900; border-radius: 50%; display: grid; place-items: center; z-index: 2; }
+    .main-content { padding: 14px 18px 86px; min-height: calc(100dvh - 64px); }
+    .day-header { display: flex; align-items: center; gap: 12px; margin: 1px 0 12px; color: #4c5361; min-height: 38px; }
+    .date-title { font-size: 16px; line-height: 1.1; font-weight: 750; min-width: 36px; display: flex; flex-direction: column; gap: 1px; }
+    .date-title strong { font-size: 19px; color: #4b5260; }
+    .day-heading-meta { font-size: 12px; color: #8a909d; }
+    .small-action { border: 1px solid var(--line); background: #fff; border-radius: 9px; padding: 6px 9px; font-size: 12px; color: #59616f; }
+    .timeline { display: flex; flex-direction: column; gap: 3px; }
+    .timeline-row { display: grid; grid-template-columns: 45px minmax(0, 1fr); gap: 7px; align-items: stretch; min-height: 48px; }
+    .time-label { color: #576071; font-size: 12px; padding-top: 5px; display: flex; justify-content: flex-start; align-items: flex-start; flex-direction: column; line-height: 1.25; padding-left: 3px; }
+    .time-label .number { font-size: 13px; }
+    .slot-card { border: 1px solid #545454; border-radius: 4px; min-height: 48px; background: white; padding: 4px 7px 5px; text-align: left; display: block; width: 100%; overflow-wrap: anywhere; transition: box-shadow .12s, transform .12s; }
+    .slot-card:hover { box-shadow: 0 2px 7px rgba(30,45,66,.15); transform: translateY(-1px); }
+    .slot-card.empty { border: 1px dashed #c8cbd5; background: rgba(255,255,255,.42); min-height: 34px; color: #9aa0ad; display: flex; align-items: center; font-size: 12px; padding: 6px 10px; }
+    .slot-card.empty .empty-plus { font-size: 17px; font-weight: 300; margin-right: 7px; }
+    .slot-subject { display: block; font-size: 16px; line-height: 1.18; font-weight: 800; color: #11151b; margin-bottom: 1px; }
+    .slot-detail { display: block; font-size: 12px; line-height: 1.25; color: #191d24; }
+    .slot-detail strong { font-weight: 700; }
+    .slot-card.has-memo { box-shadow: inset 3px 0 0 #edb535; }
+    .memo-line { display: block; color: #7c4c00; font-size: 11px; margin-top: 3px; background: rgba(255,255,255,.45); border-radius: 3px; padding: 2px 4px; }
+    .break-row { min-height: 53px; display: grid; grid-template-columns: 45px 1fr; gap: 7px; align-items: center; }
+    .break-label { color: #525968; font-size: 12px; padding-left: 7px; }
+    .break-line { color: #6d7481; font-size: 12px; text-align: left; }
+    .break-line span { display: inline-block; border-bottom: 1px solid #888f9c; padding-bottom: 2px; }
+    .section-caption { font-size: 13px; font-weight: 750; margin: 5px 0 8px; color: #505765; }
+    .fab { position: fixed; right: max(calc((100vw - min(880px, 100vw))/2 + 25px), 20px); bottom: max(env(safe-area-inset-bottom), 19px); z-index: 12; width: 54px; height: 54px; border-radius: 12px; border: 1px solid #747d88; background: #d0eaff; box-shadow: 0 3px 7px rgba(0,0,0,.16); font-size: 29px; font-weight: 300; display: grid; place-items: center; color: #111923; }
+    .fab:hover { background: #bce0ff; }
+    .view-toolbar { display: flex; align-items: center; gap: 8px; margin: 0 0 13px; flex-wrap: wrap; }
+    .view-toolbar .date-nav { margin-left: auto; display: flex; gap: 4px; }
+    .view-title { font-size: 17px; font-weight: 800; margin: 0; }
+    .date-nav button { background: #fff; border: 1px solid var(--line); border-radius: 8px; height: 31px; min-width: 32px; }
+    .three-day-stack { display: grid; gap: 16px; }
+    .mini-day { border-bottom: 1px solid var(--line); padding-bottom: 13px; }
+    .mini-day h3 { font-size: 14px; margin: 0 0 8px; color: #525968; }
+    .mini-day .timeline-row { grid-template-columns: 34px minmax(0,1fr); }
+    .mini-day .slot-card { min-height: 34px; padding: 4px 7px; }
+    .mini-day .slot-subject { font-size: 14px; }
+    .mini-day .slot-detail { font-size: 11px; }
+    .week-wrap { overflow-x: auto; border: 1px solid #c9ceda; border-radius: 8px; background: #fff; }
+    .week-table { border-collapse: collapse; width: 100%; min-width: 620px; table-layout: fixed; }
+    .week-table th, .week-table td { border: 1px solid #cbd0db; text-align: center; padding: 0; }
+    .week-table thead th { background: #eff1f7; padding: 8px 4px; font-size: 12px; font-weight: 650; }
+    .week-table thead small { display: block; font-size: 10px; color: #727987; margin-top: 2px; }
+    .week-table .period-head { width: 38px; background: #f2f4f8; font-size: 12px; color: #5f6673; }
+    .week-table td { height: 72px; vertical-align: stretch; }
+    .week-cell { width: 100%; height: 100%; min-height: 72px; border: 0; padding: 6px 3px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; font-size: 13px; line-height: 1.25; overflow-wrap: anywhere; }
+    .week-cell strong { font-size: 13px; font-weight: 800; }
+    .week-cell small { font-size: 10px; color: #6d7380; }
+    .week-cell.empty { background: #fff; color: #b0b5bf; }
+    .week-cell:hover { filter: brightness(.97); }
+    .week-note { color: #7a8190; font-size: 11px; margin: 9px 2px 0; }
+    .month-grid { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: #fff; }
+    .month-dow { background: #eef0f7; font-size: 11px; text-align: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .month-day { min-height: 90px; padding: 5px 4px; border-right: 1px solid #e0e3eb; border-bottom: 1px solid #e0e3eb; font-size: 11px; background: #fff; text-align: left; vertical-align: top; }
+    .month-day:nth-child(7n) { border-right: 0; }
+    .month-day.muted { background: #f8f9fc; color: #b3b8c3; }
+    .month-day.selected { box-shadow: inset 0 0 0 2px #76aeea; background: #f1f7ff; }
+    .month-day-number { font-weight: 750; display: block; margin-bottom: 4px; }
+    .month-event { display: block; width: 100%; text-align: left; border: 0; background: #e1edff; font-size: 10px; line-height: 1.3; margin: 2px 0; border-radius: 3px; padding: 2px 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .event-list { display: grid; gap: 8px; }
+    .event-card { border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; background: #fff; display: flex; gap: 10px; align-items: flex-start; }
+    .event-bullet { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; margin-top: 5px; background: #dfb248; }
+    .event-card strong { display: block; font-size: 14px; }
+    .event-card p { margin: 3px 0 0; font-size: 12px; color: #656d7a; line-height: 1.5; }
+    .empty-state { padding: 25px 16px; text-align: center; color: #7d8491; background: #fff; border: 1px dashed #d6d9e2; border-radius: 10px; font-size: 13px; }
+    .drawer-backdrop, .modal-backdrop { position: fixed; inset: 0; background: rgba(19,22,29,.48); z-index: 30; display: none; }
+    .drawer-backdrop.open { display: block; }
+    .drawer { position: fixed; z-index: 31; inset: 0 auto 0 0; width: min(310px, 86vw); background: #f5f6fc; box-shadow: 6px 0 22px rgba(22,30,48,.15); padding: 14px 9px 18px; transform: translateX(-105%); transition: transform .2s ease; overflow-y: auto; }
+    .drawer.open { transform: translateX(0); }
+    .drawer-logo { height: 80px; margin: 0 11px 12px; display: grid; place-items: center; background: #02e9ed; border: 1px solid #343d4b; overflow: hidden; }
+    .drawer-logo img { display: none; width: 100%; height: 100%; object-fit: contain; }
+    .drawer-logo .logo-placeholder { font-size: 23px; color: #111; }
+    .drawer-menu { display: grid; gap: 3px; }
+    .drawer-item { width: 100%; border: 0; background: transparent; border-radius: 24px; padding: 10px 14px; display: flex; align-items: center; text-align: left; gap: 15px; min-height: 39px; font-size: 13px; color: #414855; }
+    .drawer-item:hover { background: #e8ebf6; }
+    .drawer-item.active { background: #dce5f8; color: #1f2b40; }
+    .drawer-item svg { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.65; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+    .drawer-divider { height: 1px; background: #d4d8e3; margin: 10px 0 4px; }
+    .modal-backdrop { z-index: 40; display: none; overflow-y: auto; padding: 24px 12px; align-items: center; justify-content: center; }
+    .modal-backdrop.open { display: flex; }
+    .modal { width: min(100%, 650px); max-height: min(90dvh, 920px); overflow: auto; background: #f8f9fd; border-radius: 16px; box-shadow: var(--shadow); border: 1px solid rgba(255,255,255,.8); }
+    .modal.wide { width: min(100%, 920px); }
+    .modal-header { display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 16px 18px; background: #eff1f8; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
+    .modal-header h2 { font-size: 17px; margin: 0; }
+    .modal-body { padding: 17px 18px 20px; }
+    .modal-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 18px 17px; border-top: 1px solid var(--line); }
+    .btn { border: 1px solid #c6ccd8; border-radius: 9px; padding: 9px 13px; background: #fff; font-size: 13px; font-weight: 650; }
+    .btn:hover { background: #f0f5fc; }
+    .btn.primary { background: #d0e9ff; border-color: #93bfeb; color: #18314a; }
+    .btn.danger { color: #9d3131; }
+    .form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+    .field { display: grid; gap: 5px; margin-bottom: 12px; min-width: 0; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { font-size: 12px; font-weight: 750; color: #505766; }
+    .field input, .field select, .field textarea, .modal-body input[type="text"], .modal-body input[type="url"], .modal-body input[type="date"], .modal-body textarea { width: 100%; min-width: 0; border: 1px solid #cbd1de; border-radius: 8px; background: #fff; padding: 9px 10px; color: var(--ink); }
+    .field textarea { min-height: 62px; resize: vertical; }
+    .helper { color: #777f8d; font-size: 11px; line-height: 1.55; margin: 5px 0 12px; }
+    .notice { padding: 10px 12px; border-radius: 8px; background: #edf4ff; border: 1px solid #d5e5fb; color: #4c607c; font-size: 12px; line-height: 1.55; margin: 0 0 13px; }
+    .warning-notice { background: #fff6e5; border-color: #f0dcae; color: #7b5a1a; }
+    .color-options { display: flex; gap: 8px; flex-wrap: wrap; }
+    .color-choice { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
+    .color-choice input { accent-color: #5396d8; }
+    .color-dot { width: 17px; height: 17px; border: 1px solid rgba(0,0,0,.25); border-radius: 4px; }
+    .settings-list { display: grid; gap: 9px; }
+    .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+    .settings-row strong { display: block; font-size: 13px; }
+    .settings-row small { color: #777f8d; display: block; margin-top: 3px; font-size: 11px; line-height: 1.45; }
+    .ocr-preview { display: block; max-height: 260px; max-width: 100%; margin: 8px auto 12px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
+    .ocr-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .ocr-controls label { font-size: 12px; color: #5d6572; }
+    .ocr-progress { height: 7px; border-radius: 8px; background: #e4e8f1; overflow: hidden; margin: 10px 0; }
+    .ocr-progress span { display: block; height: 100%; width: 0; background: #76abd9; transition: width .15s; }
+    .ocr-status { color: #6b7380; font-size: 12px; margin: 7px 0; min-height: 18px; }
+    .ocr-grid-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: white; }
+    .ocr-grid { width: 100%; min-width: 620px; border-collapse: collapse; table-layout: fixed; }
+    .ocr-grid th, .ocr-grid td { border: 1px solid #d1d6e0; padding: 4px; }
+    .ocr-grid th { font-size: 11px; background: #eff1f8; }
+    .ocr-grid input { width: 100%; min-width: 68px; padding: 7px 5px; border: 1px solid #dde1ea; border-radius: 5px; font-size: 12px; }
+    .ocr-textarea { min-height: 80px !important; }
+    .task-check { display: inline-flex; gap: 8px; align-items: flex-start; }
+    .task-check input { accent-color: #4286cb; margin-top: 4px; }
+    .footer-note { color: #8b919d; font-size: 10px; text-align: center; padding: 15px 0 0; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    @media (max-width: 620px) {
+      .app-shell { width: 100%; }
+      .topbar { height: 58px; gap: 5px; padding: 0 10px; }
+      .topbar .icon-button { width: 32px; }
+      .month-select { font-size: 16px; min-width: 65px; }
+      .main-content { padding: 11px 10px 80px; }
+      .timeline-row, .break-row { grid-template-columns: 39px minmax(0,1fr); gap: 5px; }
+      .slot-card { padding: 4px 6px; }
+      .slot-subject { font-size: 15px; }
+      .slot-detail { font-size: 11px; }
+      .fab { right: 16px; bottom: max(env(safe-area-inset-bottom), 15px); width: 51px; height: 51px; }
+      .modal-backdrop { padding: 10px 6px; align-items: flex-end; }
+      .modal { max-height: 94dvh; border-radius: 16px 16px 10px 10px; }
+      .modal-body { padding: 14px 13px 16px; }
+      .modal-header { padding: 13px 14px; }
+      .modal-footer { padding: 11px 13px 14px; }
+      .form-grid { grid-template-columns: 1fr; gap: 0; }
+      .field.full { grid-column: auto; }
+      .month-day { min-height: 64px; font-size: 10px; padding: 3px; }
+      .month-event { font-size: 9px; }
+    }
+    @media (min-width: 900px) {
+      .main-content { padding: 18px 26px 94px; }
+      .timeline-row { grid-template-columns: 52px minmax(0,1fr); gap: 8px; }
+      .break-row { grid-template-columns: 52px 1fr; }
+      .slot-card { padding: 5px 9px 6px; }
+      .slot-subject { font-size: 18px; }
+      .slot-detail { font-size: 13px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar" aria-label="メインメニュー">
+      <button class="icon-button" data-action="toggle-drawer" aria-label="メニューを開く" title="メニュー">
+        <svg viewBox="0 0 24 24"><path d="M4 6.5h16M4 12h16M4 17.5h16"/></svg>
+      </button>
+      <select class="month-select" id="monthSelect" aria-label="表示する月"></select>
+      <div class="top-spacer"></div>
+      <button class="icon-button" data-action="open-search" aria-label="検索" title="検索">
+        <svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.6"/><path d="m16 16 4.4 4.4"/></svg>
+      </button>
+      <button class="icon-button" data-action="today" aria-label="今日へ移動" title="今日"><span class="today-icon" id="todayIcon">21</span></button>
+      <button class="icon-button check-wrap" data-action="open-tasks" aria-label="メモとチェックリスト" title="メモ・チェックリスト">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m7.5 12.2 3 3.1 6.3-6.6"/></svg><span class="tiny-badge" id="memoBadge" hidden>!</span>
+      </button>
+      <button class="icon-button" data-action="open-profile" aria-label="ユーザー設定" title="ユーザー"><span class="avatar"><i class="warning-dot">!</i></span></button>
+    </header>
+    <main id="mainContent" class="main-content" aria-live="polite"></main>
+  </div>
+  <button class="fab" data-action="add-slot" aria-label="予定を追加" title="予定を追加">+</button>
+
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+  <aside class="drawer" id="drawer" aria-label="ナビゲーション">
+    <div class="drawer-logo"><span class="logo-placeholder" id="logoPlaceholder">ロゴ画像</span><img id="logoImage" alt="アプリのロゴ"></div>
+    <nav class="drawer-menu">
+      <button class="drawer-item" data-action="set-view" data-view="schedule"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg>スケジュール</button>
+      <button class="drawer-item active" data-action="set-view" data-view="day"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M3 13h18v7H3z" fill="currentColor" opacity=".12"/><path d="M3 13h18v7H3z"/></svg>日</button>
+      <button class="drawer-item" data-action="set-view" data-view="three"><svg viewBox="0 0 24 24"><rect x="2.5" y="4" width="5" height="16" rx=".5"/><rect x="9.5" y="4" width="5" height="16" rx=".5"/><rect x="16.5" y="4" width="5" height="16" rx=".5"/></svg>3日間</button>
+      <button class="drawer-item" data-action="set-view" data-view="week"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M9 4v16M15 4v16"/></svg>週</button>
+      <button class="drawer-item" data-action="set-view" data-view="month"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9.5h18M9 4v16M15 4v16M3 14.5h18"/></svg>月</button>
+      <div class="drawer-divider"></div>
+      <button class="drawer-item" data-action="open-import"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="4"/><path d="M7 5l1-2h5l1 2"/></svg>時間割読み込み</button>
+      <button class="drawer-item" data-action="open-settings"><svg viewBox="0 0 24 24"><path d="m10 2-.6 2.1a8 8 0 0 0-1.6.7L5.9 3.7 3.7 5.9l1.1 1.9a8 8 0 0 0-.7 1.6L2 10v4l2.1.6a8 8 0 0 0 .7 1.6l-1.1 1.9 2.2 2.2 1.9-1.1a8 8 0 0 0 1.6.7L10 22h4l.6-2.1a8 8 0 0 0 1.6-.7l1.9 1.1 2.2-2.2-1.1-1.9a8 8 0 0 0 .7-1.6L22 14v-4l-2.1-.6a8 8 0 0 0-.7-1.6l1.1-1.9-2.2-2.2-1.9 1.1a8 8 0 0 0-1.6-.7L14 2z"/><circle cx="12" cy="12" r="3.2"/></svg>設定</button>
+    </nav>
+  </aside>
+  <div class="modal-backdrop" id="modalRoot" role="presentation"></div>
+  <input id="jsonFileInput" type="file" accept="application/json,.json" hidden>
+  <input id="imageFileInput" type="file" accept="image/*" capture="environment" hidden>
+
+  <script type="module">
+    // ロゴ画像URL：利用するImgur画像のURLに差し替えてください。
+    const LOGO_IMAGE_URL = 'https://i.imgur.com/xxx.png';
+    // OCR本体は「OCRを実行」を押したときだけ dynamic import します。
+    const TESSERACT_MODULE_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.esm.min.js';
+    const STORE_KEY = 'timetable-note-v1';
+    const COLORS = ['pink','blue','purple','yellow','green','gray','cyan'];
+    const COLOR_NAMES = { pink:'ピンク', blue:'青', purple:'紫', yellow:'黄', green:'緑', gray:'グレー', cyan:'水色' };
+    const COLOR_HEX = { pink:'#ffe1e2', blue:'#ddecff', purple:'#eee5ff', yellow:'#fff0de', green:'#e4f5df', gray:'#f1f1f1', cyan:'#d9f7f8' };
+    const DOW = ['日','月','火','水','木','金','土'];
+    const SLOT_META = [
+      {label:'朝', type:'special'}, {label:'1', period:1}, {label:'2', period:2}, {label:'3', period:3}, {label:'4', period:4},
+      {label:'昼休み', type:'break'}, {label:'5', period:5}, {label:'6', period:6}, {label:'7', period:7}, {label:'放課後', type:'special'}
+    ];
+    const SUBJECT_COLOR = {
+      '国語':'pink','英コミI':'purple','英コミュI':'purple','英コミュⅠ':'purple','数IA':'blue','数学I':'blue','家庭':'yellow',
+      '地理総':'yellow','地理総合':'yellow','生基':'green','生物基礎':'green','化基':'green','化学基礎':'green','体育':'gray',
+      '保健':'cyan','歴史総':'pink','論表I':'pink','総合探究':'purple','校内大学進学相談会':'cyan','朝練':'gray'
+    };
+    const SUBJECT_NAMES = ['校内大学進学相談会','総合探究','英コミュⅠ','英コミュI','英コミュ','地理総合','化学基礎','生物基礎','歴史総','論表I','数IA','家庭','体育','保健','国語','地理総','化基','生基','数学I'];
+    const currentISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+    const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const parseISO = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d, 12); };
+    const addDays = (s, n) => { const d = parseISO(s); d.setDate(d.getDate()+n); return iso(d); };
+    const mondayOf = s => { const d = parseISO(s); const shift = (d.getDay()+6)%7; d.setDate(d.getDate()-shift); return iso(d); };
+    const prettyDate = s => { const d=parseISO(s); return `${DOW[d.getDay()]} ${d.getDate()}`; };
+    const longDate = s => { const d=parseISO(s); return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${DOW[d.getDay()]}）`; };
+    const slotIndexForPeriod = p => p <= 4 ? p : p+1;
+    const periodForSlotIndex = i => (i >= 6 && i <= 8) ? i-1 : ((i >= 1 && i <= 4) ? i : null);
+    const blankSlot = (label='') => ({ label, subject:'', color:'blue', bring:'', quiz:'', location:'', homework:'', memo:'', rowSpan:1, colSpan:1, coveredBy:null });
+    function newDay() { return { slots:SLOT_META.map(s=>blankSlot(s.label)) }; }
+    function setSubject(state, date, period, subject, detail={}) {
+      ensureDay(state, date);
+      const index = slotIndexForPeriod(period);
+      state.schedule[date].slots[index] = {...blankSlot(String(period)), ...state.schedule[date].slots[index], subject, color:detail.color || SUBJECT_COLOR[subject] || 'blue', ...detail};
+      state.schedule[date].slots[index].label = String(period);
+    }
+    function ensureDay(state, date) {
+      if (!state.schedule[date] || !Array.isArray(state.schedule[date].slots)) state.schedule[date] = newDay();
+      while (state.schedule[date].slots.length < SLOT_META.length) state.schedule[date].slots.push(blankSlot());
+      state.schedule[date].slots = state.schedule[date].slots.slice(0, SLOT_META.length);
+      state.schedule[date].slots.forEach((s,i)=> { if (!s || typeof s !== 'object') state.schedule[date].slots[i]=blankSlot(SLOT_META[i]?.label || ''); else Object.assign(s,{label:SLOT_META[i]?.label || s.label || ''},{rowSpan:Number(s.rowSpan)||1,colSpan:Number(s.colSpan)||1,coveredBy:s.coveredBy||null}); });
+    }
+    function createSeedState() {
+      const s = { selectedDate:'2026-10-27', view:'day', schedule:{}, merges:[], doneTasks:[], logoUrl:LOGO_IMAGE_URL };
+      ['2026-10-26','2026-10-27','2026-10-28','2026-10-29','2026-10-30','2026-10-21'].forEach(d=>ensureDay(s,d));
+      const demo = { bring:'教科書、ノート', homework:'', quiz:'', location:'', memo:'' };
+      const subjectDetails = (name, period, date) => {
+        const d = {...demo};
+        if (['国語','英コミI','論表I'].includes(name)) d.bring='教科書、ノート、古文単語帳';
+        if (period===1 && date==='2026-10-27') d.homework='2023年度模試過去問';
+        if (name==='家庭') d.location='家庭科室';
+        return d;
+      };
+      const rows = {
+        '2026-10-26':['保健','英コミI','化基','生基','数IA','国語','地理総'],
+        '2026-10-27':['国語','数IA','家庭','地理総','家庭','体育',''],
+        '2026-10-28':['校内大学進学相談会','','','','','',''],
+        '2026-10-29':['歴史総','論表I','体育','国語','数IA','総合探究','総合探究'],
+        '2026-10-30':['論表I','生基','数IA','数IA','国語','歴史総','']
+      };
+      for (const [date,subjects] of Object.entries(rows)) {
+        subjects.forEach((name,i)=> { if(name) setSubject(s,date,i+1,name,subjectDetails(name,i+1,date)); });
+      }
+      s.schedule['2026-10-27'].slots[0] = {...blankSlot('朝'),subject:'朝練',color:'gray',bring:'体操着',memo:''};
+      s.schedule['2026-10-27'].slots[9] = {...blankSlot('放課後'),subject:'',color:'gray'};
+      s.merges.push({id:'school-counseling-demo',startDate:'2026-10-28',startPeriod:1,rowSpan:7,colSpan:1});
+      syncMerges(s);
+      return s;
+    }
+    function sanitizeState(raw) {
+      const s = { selectedDate: typeof raw.selectedDate==='string' ? raw.selectedDate : '2026-10-27', view:['day','three','week','month','schedule'].includes(raw.view)?raw.view:'day', schedule:raw.schedule && typeof raw.schedule==='object'?raw.schedule:{}, merges:Array.isArray(raw.merges)?raw.merges:[], doneTasks:Array.isArray(raw.doneTasks)?raw.doneTasks:[], logoUrl:typeof raw.logoUrl==='string'?raw.logoUrl:LOGO_IMAGE_URL };
+      Object.keys(s.schedule).forEach(d=>ensureDay(s,d));
+      for (const d of [s.selectedDate, mondayOf(s.selectedDate), ...Array.from({length:7},(_,i)=>addDays(mondayOf(s.selectedDate),i))]) ensureDay(s,d);
+      syncMerges(s);
+      return s;
+    }
+    function loadInitialState() {
+      try { const saved=localStorage.getItem(STORE_KEY); if(saved) return sanitizeState(JSON.parse(saved)); } catch(e) { console.warn('保存データを読み込めませんでした',e); }
+      const fresh=createSeedState(); persistState(fresh); return fresh;
+    }
+    let state = loadInitialState();
+    const mainContent = document.getElementById('mainContent');
+    const drawer = document.getElementById('drawer');
+    const drawerBackdrop = document.getElementById('drawerBackdrop');
+    const modalRoot = document.getElementById('modalRoot');
+    const jsonFileInput = document.getElementById('jsonFileInput');
+    const imageFileInput = document.getElementById('imageFileInput');
+    let pendingSharedState = null;
+    let ocrFile = null;
+    let ocrProcessedCanvas = null;
+    let ocrSourceImage = null;
+    let ocrRawText = '';
+    let ocrDraft = null;
+    let selectedEditor = null;
+    let ocrBusy = false;
+
+    function persistState(s=state) { try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch(e) { console.warn('保存に失敗しました',e); } }
+    function daySlot(date, idx) { ensureDay(state,date); return state.schedule[date].slots[idx] || (state.schedule[date].slots[idx]=blankSlot()); }
+    function getCell(date, period) { return daySlot(date,slotIndexForPeriod(period)); }
+    function setLogo(url) {
+      const img=document.getElementById('logoImage'), placeholder=document.getElementById('logoPlaceholder');
+      const clean=(url||'').trim();
+      if (!clean) { img.style.display='none'; placeholder.style.display='block'; return; }
+      img.onload=()=>{img.style.display='block';placeholder.style.display='none';};
+      img.onerror=()=>{img.style.display='none';placeholder.style.display='block';};
+      img.src=clean;
+    }
+    function esc(v='') { return String(v ?? '').replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+    function escapeAttr(v='') { return esc(v).replace(/\n/g,' '); }
+    function cellDetails(slot) {
+      let html='';
+      if(slot.bring) html += `<span class="slot-detail"><strong>持ち物：</strong>${esc(slot.bring)}</span>`;
+      if(slot.quiz) html += `<span class="slot-detail"><strong>小テスト：</strong>${esc(slot.quiz)}</span>`;
+      if(slot.location) html += `<span class="slot-detail"><strong>場所：</strong>${esc(slot.location)}</span>`;
+      if(slot.homework) html += `<span class="slot-detail"><strong>宿題：</strong>${esc(slot.homework)}</span>`;
+      if(slot.memo) html += `<span class="memo-line">⚠ ${esc(slot.memo)}</span>`;
+      return html;
+    }
+    function dayHasNotice(date) { ensureDay(state,date); return state.schedule[date].slots.some(s=>s && (s.memo||'').trim()); }
+    function noticeCount() { let count=0; for(const [date,d] of Object.entries(state.schedule)) if(d.slots?.some(s=>(s?.memo||'').trim())) count++; return count; }
+    function refreshHeader() {
+      const monthSelect=document.getElementById('monthSelect');
+      if(!monthSelect.options.length) { for(let m=1;m<=12;m++) { const o=document.createElement('option'); o.value=String(m); o.textContent=`${m}月 ▼`; monthSelect.appendChild(o); } }
+      monthSelect.value=String(parseISO(state.selectedDate).getMonth()+1);
+      document.getElementById('todayIcon').textContent=String(new Date().getDate());
+      const badge=document.getElementById('memoBadge'); const n=noticeCount(); badge.hidden=!n; badge.textContent=n>9?'9+':String(n);
+      document.querySelectorAll('.drawer-item[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===state.view));
+    }
+    function closeDrawer() { drawer.classList.remove('open'); drawerBackdrop.classList.remove('open'); }
+    function openDrawer() { drawer.classList.add('open'); drawerBackdrop.classList.add('open'); }
+    function closeModal() { modalRoot.classList.remove('open'); modalRoot.innerHTML=''; selectedEditor=null; }
+    function showModal(title, body, footer='', wide=false, close=true) {
+      modalRoot.innerHTML=`<section class="modal ${wide?'wide':''}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-header"><h2>${esc(title)}</h2>${close?'<button class="icon-button" data-action="close-modal" aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>':''}</div><div class="modal-body">${body}</div>${footer?`<div class="modal-footer">${footer}</div>`:''}</section>`;
+      modalRoot.classList.add('open');
+    }
+    function viewToolbar(title, dateRange=true) {
+      return `<div class="view-toolbar"><h1 class="view-title">${esc(title)}</h1>${dateRange?`<div class="date-nav"><button data-action="navigate" data-step="-1" aria-label="前へ">‹</button><button data-action="choose-date" aria-label="日付を選択">${esc(state.selectedDate.slice(5).replace('-','/'))}</button><button data-action="navigate" data-step="1" aria-label="次へ">›</button></div>`:''}</div>`;
+    }
+    function timelineRow(date, idx, showBlank=true) {
+      const meta=SLOT_META[idx]; const slot=daySlot(date,idx);
+      if(meta.type==='break') return `<div class="break-row"><div class="break-label">昼休み</div><div class="break-line"><span>${slot.subject?esc(slot.subject):'昼休み'}</span></div></div>`;
+      if(!meta.period && !slot.subject && !slot.memo && !slot.bring && !slot.homework) {
+        if(!showBlank) return '';
+        return `<div class="timeline-row"><div class="time-label">${esc(meta.label)}</div><button class="slot-card empty" data-action="edit-slot" data-date="${date}" data-index="${idx}"><span class="empty-plus">＋</span>${meta.label==='朝'?'朝の予定を追加':meta.label==='放課後'?'放課後の予定を追加':'授業を追加'}</button></div>`;
+      }
+      if(slot.coveredBy && slot.coveredBy.date===date && slot.coveredBy.period!==meta.period) return '';
+      const blank = !slot.subject && !slot.bring && !slot.homework && !slot.memo && !slot.quiz && !slot.location;
+      if(blank && !showBlank) return '';
+      return `<div class="timeline-row"><div class="time-label">${esc(meta.label)}</div><button class="slot-card ${blank?'empty':''} ${slot.memo?'has-memo':''}" style="background:${blank?'rgba(255,255,255,.42)':(COLOR_HEX[slot.color]||COLOR_HEX.blue)}" data-action="edit-slot" data-date="${date}" data-index="${idx}" ${blank?'':'aria-label="'+esc(slot.subject)+'を編集"'}>${blank?'<span class="empty-plus">＋</span>授業を追加':`<span class="slot-subject">${esc(slot.subject)}</span>${cellDetails(slot)}`}</button></div>`;
+    }
+    function renderDay(date, embedded=false) {
+      const d=parseISO(date);
+      const rows=SLOT_META.map((_,idx)=>timelineRow(date,idx,embedded?false:true)).join('');
+      return `${embedded?'':`<div class="day-header"><div class="date-title">${DOW[d.getDay()]}<strong>${d.getDate()}</strong></div><div class="day-heading-meta">${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日</div><button class="small-action" data-action="choose-date">日付を変更</button></div>`}<div class="timeline">${rows}</div>`;
+    }
+    function renderThreeDays() {
+      const dates=[state.selectedDate,addDays(state.selectedDate,1),addDays(state.selectedDate,2)];
+      return `${viewToolbar('3日間') }<div class="three-day-stack">${dates.map(date=>`<section class="mini-day"><h3>${esc(longDate(date))}</h3>${renderDay(date,true)}</section>`).join('')}</div>`;
+    }
+    function ensureDates(dates) { dates.forEach(d=>ensureDay(state,d)); }
+    function ownerForCell(date, period) {
+      const c=getCell(date,period);
+      if(c.coveredBy) return c.coveredBy;
+      return {date,period};
+    }
+    function sameCell(a,b) { return a.date===b.date && Number(a.period)===Number(b.period); }
+    function renderWeek() {
+      const start=mondayOf(state.selectedDate); const dates=Array.from({length:5},(_,i)=>addDays(start,i)); ensureDates(dates);
+      let html=`${viewToolbar('週') }<div class="week-wrap"><table class="week-table"><thead><tr><th class="period-head">時限</th>${dates.map(d=>`<th><button style="border:0;background:transparent;padding:0;color:inherit" data-action="choose-date" data-date="${d}">${parseISO(d).getDate()}日</button><small>${DOW[parseISO(d).getDay()]}</small></th>`).join('')}</tr></thead><tbody>`;
+      for(let p=1;p<=7;p++) {
+        html+=`<tr><th class="period-head">${p}</th>`;
+        for(let c=0;c<dates.length;c++) {
+          const date=dates[c], cell=getCell(date,p);
+          if(cell.coveredBy) {
+            const owner=cell.coveredBy; const ownerCol=dates.indexOf(owner.date);
+            if(ownerCol>=0 && owner.period<=p && ownerCol<=c) continue;
+          }
+          const rowSpan=Math.min(7-p+1,Math.max(1,Number(cell.rowSpan)||1));
+          const colSpan=Math.min(5-c,Math.max(1,Number(cell.colSpan)||1));
+          const isEmpty=!(cell.subject||cell.bring||cell.homework||cell.memo||cell.quiz||cell.location);
+          html+=`<td rowspan="${rowSpan}" colspan="${colSpan}"><button class="week-cell ${isEmpty?'empty':''}" style="background:${isEmpty?'#fff':COLOR_HEX[cell.color]||COLOR_HEX.blue}" data-action="edit-period" data-date="${date}" data-period="${p}">${isEmpty?'<span>＋</span>':`<strong>${esc(cell.subject||'（内容未設定）')}</strong>${cell.memo?'<small>⚠ メモあり</small>':''}`}</button></td>`;
+          c += colSpan-1;
+        }
+        html+='</tr>';
+      }
+      html+='</tbody></table></div><p class="week-note">セルを選ぶと編集できます。編集画面では縦・横のセル結合にも対応します。</p>';
+      return html;
+    }
+    function renderMonth() {
+      const d=parseISO(state.selectedDate), monthStart=new Date(d.getFullYear(),d.getMonth(),1,12), firstMonday=new Date(monthStart); firstMonday.setDate(firstMonday.getDate()-((firstMonday.getDay()+6)%7));
+      const dates=Array.from({length:42},(_,i)=>{const x=new Date(firstMonday);x.setDate(firstMonday.getDate()+i);return iso(x);});
+      let html=`${viewToolbar('月') }<div class="month-grid">${['月','火','水','木','金','土','日'].map(x=>`<div class="month-dow">${x}</div>`).join('')}`;
+      for(const date of dates) {
+        ensureDay(state,date); const sameMonth=parseISO(date).getMonth()===d.getMonth(); const dayNum=parseISO(date).getDate();
+        const subjects=state.schedule[date].slots.filter((s,i)=>periodForSlotIndex(i) && s.subject).slice(0,2);
+        html+=`<button class="month-day ${sameMonth?'':'muted'} ${date===state.selectedDate?'selected':''}" data-action="select-date" data-date="${date}"><span class="month-day-number">${dayNum}</span>${subjects.map(s=>`<span class="month-event">${esc(s.subject)}</span>`).join('')}</button>`;
+      }
+      html+='</div><p class="week-note">日付を選ぶと、その日の時間割に移動します。</p>';
+      return html;
+    }
+    function allNoticeItems() {
+      const arr=[];
+      Object.keys(state.schedule).sort().forEach(date=>state.schedule[date].slots.forEach((slot,index)=>{
+        if(!slot || !(slot.memo||slot.homework||slot.quiz)) return;
+        const labels=[]; if(slot.memo)labels.push(`⚠ ${slot.memo}`); if(slot.homework)labels.push(`宿題：${slot.homework}`); if(slot.quiz)labels.push(`小テスト：${slot.quiz}`);
+        arr.push({date,index,subject:slot.subject||SLOT_META[index]?.label||'予定',detail:labels.join(' / ')});
+      }));
+      return arr.sort((a,b)=>a.date.localeCompare(b.date));
+    }
+    function renderSchedule() {
+      const start=mondayOf(state.selectedDate), end=addDays(start,6);
+      const list=allNoticeItems().filter(x=>x.date>=start&&x.date<=end);
+      const dates=Array.from({length:7},(_,i)=>addDays(start,i));
+      const subjects=[];
+      dates.forEach(date=>state.schedule[date]?.slots.forEach((slot,index)=>{if(slot?.subject)subjects.push({date,index,slot});}));
+      return `${viewToolbar('スケジュール')}<div class="section-caption">${esc(longDate(start))} 〜 ${esc(longDate(end))}</div><div class="event-list">${subjects.length?subjects.map(x=>`<button class="event-card" style="text-align:left;width:100%" data-action="edit-slot" data-date="${x.date}" data-index="${x.index}"><span class="event-bullet" style="background:${COLOR_HEX[x.slot.color]||'#d0d7e6'}"></span><span><strong>${esc(prettyDate(x.date))} · ${esc(x.slot.subject)}</strong><p>${esc([x.slot.location,x.slot.bring,x.slot.homework,x.slot.memo].filter(Boolean).join(' / ')||'詳細を追加できます')}</p></span></button>`).join(''):'<div class="empty-state">この週の予定はまだありません。</div>'}</div>${list.length?`<div class="section-caption" style="margin-top:18px">宿題・メモ</div><div class="event-list">${list.map(x=>`<button class="event-card" data-action="edit-slot" data-date="${x.date}" data-index="${x.index}"><span class="event-bullet"></span><span><strong>${esc(prettyDate(x.date))} · ${esc(x.subject)}</strong><p>${esc(x.detail)}</p></span></button>`).join('')}</div>`:''}`;
+    }
+    function render() {
+      refreshHeader(); setLogo(state.logoUrl||LOGO_IMAGE_URL);
+      if(state.view==='day') mainContent.innerHTML=renderDay(state.selectedDate);
+      else if(state.view==='three') mainContent.innerHTML=renderThreeDays();
+      else if(state.view==='week') mainContent.innerHTML=renderWeek();
+      else if(state.view==='month') mainContent.innerHTML=renderMonth();
+      else mainContent.innerHTML=renderSchedule();
+      persistState();
+    }
+    function datesInWeek(date) { const start=mondayOf(date); return Array.from({length:5},(_,i)=>addDays(start,i)); }
+    function dateDelta(a,b) { return Math.round((parseISO(a)-parseISO(b))/86400000); }
+    function mergeCellsCoveredBy(s) {
+      for(const date of Object.keys(s.schedule)) {
+        ensureDay(s,date);
+        s.schedule[date].slots.forEach(slot=>{slot.rowSpan=1;slot.colSpan=1;slot.coveredBy=null;});
+      }
+      for(const m of s.merges||[]) {
+        ensureDay(s,m.startDate);
+        const startCell=s.schedule[m.startDate].slots[slotIndexForPeriod(m.startPeriod)];
+        startCell.rowSpan=Math.max(1,Math.min(8-Number(m.startPeriod),Number(m.rowSpan)||1));
+        const dates=Array.from({length:Math.max(1,Math.min(5,Number(m.colSpan)||1))},(_,i)=>addDays(m.startDate,i));
+        startCell.colSpan=dates.length;
+        for(let r=0;r<startCell.rowSpan;r++) for(let c=0;c<dates.length;c++) {
+          if(r===0&&c===0) continue;
+          const date=addDays(m.startDate,c); if(dateDelta(date,mondayOf(date))<0 || dateDelta(date,mondayOf(date))>4) continue;
+          ensureDay(s,date); const target=s.schedule[date].slots[slotIndexForPeriod(Number(m.startPeriod)+r)];
+          if(target) target.coveredBy={date:m.startDate,period:Number(m.startPeriod)};
+        }
+      }
+    }
+    function syncMerges(s=state) { mergeCellsCoveredBy(s); }
+    function ownerOf(date, period) {
+      const c=getCell(date,period);
+      return c.coveredBy ? {date:c.coveredBy.date,period:Number(c.coveredBy.period)} : {date,period};
+    }
+    function unmergeAt(date, period) {
+      const owner=ownerOf(date,period);
+      state.merges=state.merges.filter(m=>!(m.startDate===owner.date && Number(m.startPeriod)===Number(owner.period)));
+      syncMerges(state);
+    }
+    function setMerge(date, period, rowSpan, colSpan) {
+      rowSpan=Math.max(1,Math.min(8-period,Number(rowSpan)||1));
+      const week=datesInWeek(date), startCol=week.indexOf(date);
+      colSpan=Math.max(1,Math.min(5-Math.max(0,startCol),Number(colSpan)||1));
+      if(startCol<0) colSpan=1;
+      const newDates=Array.from({length:colSpan},(_,i)=>addDays(date,i));
+      const overlaps=(m)=> {
+        const md=Array.from({length:m.colSpan||1},(_,i)=>addDays(m.startDate,i));
+        const dateHit=newDates.some(d=>md.includes(d));
+        const rowHit=!(period+rowSpan-1 < m.startPeriod || period > m.startPeriod+(m.rowSpan||1)-1);
+        return dateHit&&rowHit;
+      };
+      state.merges=state.merges.filter(m=>!overlaps(m));
+      if(rowSpan>1 || colSpan>1) state.merges.push({id:`m-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,startDate:date,startPeriod:period,rowSpan,colSpan});
+      syncMerges(state);
+    }
+    function openSlotEditor(date, index) {
+      ensureDay(state,date);
+      let slot=daySlot(date,index); let period=periodForSlotIndex(index); let actualDate=date; let actualIndex=index;
+      if(period) { const owner=ownerOf(date,period); if(owner.date!==date || owner.period!==period) { actualDate=owner.date; period=owner.period; actualIndex=slotIndexForPeriod(period); slot=daySlot(actualDate,actualIndex); } }
+      selectedEditor={date:actualDate,index:actualIndex,period};
+      const isPeriod=period!==null;
+      const existingMerge=isPeriod?state.merges.find(m=>m.startDate===actualDate&&Number(m.startPeriod)===Number(period)):null;
+      const rowSpan=existingMerge?.rowSpan || slot.rowSpan || 1, colSpan=existingMerge?.colSpan || slot.colSpan || 1;
+      const colorRadios=COLORS.map(c=>`<label class="color-choice"><input type="radio" name="slotColor" value="${c}" ${((slot.color||SUBJECT_COLOR[slot.subject]||'blue')===c)?'checked':''}><span class="color-dot" style="background:${COLOR_HEX[c]}"></span>${COLOR_NAMES[c]}</label>`).join('');
+      const body=`<div class="notice">${esc(longDate(actualDate))} · ${isPeriod?`${period}時間目`:(SLOT_META[actualIndex]?.label||'予定')} の内容を編集します。変更はこの端末に自動保存されます。</div>
+        <form id="slotForm" onsubmit="return false"><div class="form-grid">
+          <div class="field full"><label for="slotSubject">教科・予定名</label><input id="slotSubject" name="subject" type="text" value="${escapeAttr(slot.subject)}" placeholder="例：国語"></div>
+          <div class="field full"><label>カードの色</label><div class="color-options">${colorRadios}</div></div>
+          <div class="field"><label for="slotBring">持ち物</label><input id="slotBring" type="text" value="${escapeAttr(slot.bring)}" placeholder="教科書、ノートなど"></div>
+          <div class="field"><label for="slotQuiz">小テスト</label><input id="slotQuiz" type="text" value="${escapeAttr(slot.quiz)}" placeholder="範囲・日程など"></div>
+          <div class="field"><label for="slotLocation">場所</label><input id="slotLocation" type="text" value="${escapeAttr(slot.location)}" placeholder="教室・校庭など"></div>
+          <div class="field"><label for="slotHomework">宿題</label><input id="slotHomework" type="text" value="${escapeAttr(slot.homework)}" placeholder="提出物・問題番号など"></div>
+          <div class="field full"><label for="slotMemo">忘れ物・備考（入力するとハイライト）</label><textarea id="slotMemo" placeholder="例：提出物を忘れない／プリントを持参">${esc(slot.memo)}</textarea></div>
+          ${isPeriod?`<div class="field"><label for="slotRowSpan">縦方向の結合（時限数）</label><select id="slotRowSpan">${[1,2,3,4,5,6,7].map(n=>`<option value="${n}" ${rowSpan===n?'selected':''}>${n}コマ</option>`).join('')}</select></div><div class="field"><label for="slotColSpan">横方向の結合（平日数）</label><select id="slotColSpan">${[1,2,3,4,5].map(n=>`<option value="${n}" ${colSpan===n?'selected':''}>${n}日</option>`).join('')}</select></div>`:''}
+        </div></form>`;
+      const footer=`<button class="btn danger" data-action="clear-slot">このコマを空にする</button><span style="flex:1"></span><button class="btn" data-action="close-modal">キャンセル</button><button class="btn primary" data-action="save-slot">保存する</button>`;
+      showModal('時間割を編集',body,footer,false);
+    }
+    function saveSlotFromModal() {
+      if(!selectedEditor) return;
+      const {date,index,period}=selectedEditor; ensureDay(state,date);
+      const old=daySlot(date,index); const formColor=document.querySelector('input[name="slotColor"]:checked')?.value||'blue';
+      const values={subject:document.getElementById('slotSubject')?.value.trim()||'',color:formColor,bring:document.getElementById('slotBring')?.value.trim()||'',quiz:document.getElementById('slotQuiz')?.value.trim()||'',location:document.getElementById('slotLocation')?.value.trim()||'',homework:document.getElementById('slotHomework')?.value.trim()||'',memo:document.getElementById('slotMemo')?.value.trim()||''};
+      Object.assign(old,values);
+      if(period) {
+        const rowSpan=Number(document.getElementById('slotRowSpan')?.value||1), colSpan=Number(document.getElementById('slotColSpan')?.value||1);
+        setMerge(date,period,rowSpan,colSpan);
+      }
+      persistState(); closeModal(); render();
+    }
+    function clearSelectedSlot() {
+      if(!selectedEditor) return;
+      const {date,index,period}=selectedEditor;
+      if(period) unmergeAt(date,period);
+      state.schedule[date].slots[index]=blankSlot(SLOT_META[index]?.label||'');
+      persistState(); closeModal(); render();
+    }
+    function openDatePicker(initial=state.selectedDate) {
+      const body=`<div class="field"><label for="jumpDate">表示する日付</label><input id="jumpDate" type="date" value="${initial}"></div><p class="helper">日付を選ぶと、その日の時間割に移動します。</p>`;
+      showModal('日付を選択',body,`<button class="btn" data-action="close-modal">キャンセル</button><button class="btn primary" data-action="apply-date">表示する</button>`);
+    }
+    function openSearch() {
+      const body=`<div class="field"><label for="searchInput">教科・持ち物・宿題・場所・備考</label><input id="searchInput" type="search" placeholder="例：国語、提出物、教科書" autocomplete="off"></div><div id="searchResults" class="event-list"></div>`;
+      showModal('時間割を検索',body,'',false); drawSearchResults(''); document.getElementById('searchInput').focus();
+    }
+    function drawSearchResults(query) {
+      const node=document.getElementById('searchResults'); if(!node) return;
+      const q=query.trim().toLowerCase(), results=[];
+      for(const [date,d] of Object.entries(state.schedule)) d.slots.forEach((slot,index)=>{
+        if(!slot || !(slot.subject||slot.bring||slot.quiz||slot.location||slot.homework||slot.memo)) return;
+        const all=[slot.subject,slot.bring,slot.quiz,slot.location,slot.homework,slot.memo].join(' ').toLowerCase();
+        if(!q||all.includes(q)) results.push({date,index,slot});
+      });
+      results.sort((a,b)=>a.date.localeCompare(b.date)||a.index-b.index);
+      node.innerHTML=results.slice(0,30).map(x=>`<button class="event-card" style="text-align:left;width:100%" data-action="search-result" data-date="${x.date}" data-index="${x.index}"><span class="event-bullet" style="background:${COLOR_HEX[x.slot.color]||'#ddd'}"></span><span><strong>${esc(longDate(x.date))} · ${esc(x.slot.subject||SLOT_META[x.index]?.label||'予定')}</strong><p>${esc([x.slot.bring,x.slot.quiz,x.slot.location,x.slot.homework,x.slot.memo].filter(Boolean).join(' / '))}</p></span></button>`).join('') || '<div class="empty-state">一致する予定はありません。</div>';
+    }
+    function openTasks() {
+      const tasks=allNoticeItems();
+      const body=tasks.length?`<div class="event-list">${tasks.map(t=>{const key=`${t.date}:${t.index}`;const done=state.doneTasks.includes(key);return `<div class="event-card"><label class="task-check"><input type="checkbox" data-action="toggle-task" data-task="${key}" ${done?'checked':''}><span><strong style="${done?'text-decoration:line-through;color:#858b96':''}">${esc(longDate(t.date))} · ${esc(t.subject)}</strong><p>${esc(t.detail)}</p></span></label></div>`;}).join('')}</div>`:'<div class="empty-state">宿題・小テスト・備考はまだ登録されていません。各コマを編集して記録できます。</div>';
+      showModal('宿題・備考チェック',body,`<button class="btn" data-action="close-modal">閉じる</button>`);
+    }
+    function openProfile() {
+      const body=`<div class="notice">このアプリはアカウント登録なしで使えます。時間割のデータは、このブラウザのローカルストレージに保存されます。</div><div class="settings-list"><div class="settings-row"><div><strong>端末内に保存</strong><small>同じブラウザでは再読み込みしても内容が残ります。</small></div><span>✓</span></div><div class="settings-row"><div><strong>共有・バックアップ</strong><small>URL共有またはJSONファイルで別の端末に移せます。</small></div><button class="btn" data-action="open-share">共有</button></div></div>`;
+      showModal('ユーザー',body,`<button class="btn" data-action="close-modal">閉じる</button>`);
+    }
+    function downloadBlob(name, contents, type='application/json') {
+      const blob=new Blob([contents],{type}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1200);
+    }
+    const SW_SOURCE = `const CACHE_NAME = 'timetable-note-shell-v1';\nconst APP_URL = './';\nself.addEventListener('install', event => { event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.add(APP_URL)).then(() => self.skipWaiting())); });\nself.addEventListener('activate', event => { event.waitUntil(self.clients.claim()); });\nself.addEventListener('fetch', event => { if (event.request.method !== 'GET' || new URL(event.request.url).origin !== self.location.origin) return; event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => { const copy = response.clone(); caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)); return response; }).catch(() => caches.match(APP_URL)))); });\n`;
+    function openSettings() {
+      const swReady=location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1';
+      const body=`<div class="settings-list">
+        <div class="settings-row"><div><strong>時間割データのバックアップ</strong><small>現在の時間割、メモ、結合セルをJSONで書き出します。</small></div><button class="btn" data-action="export-json">書き出す</button></div>
+        <div class="settings-row"><div><strong>JSONから復元</strong><small>別の端末で書き出したファイルを読み込みます。</small></div><button class="btn" data-action="import-json">読み込む</button></div>
+        <div class="settings-row"><div><strong>URLで共有</strong><small>時間割データをURLに含め、相手が取り込めるようにします。</small></div><button class="btn" data-action="open-share">共有URL</button></div>
+        <div class="settings-row"><div><strong>ロゴ画像 URL</strong><small>Imgurなどの画像URLを指定。空欄にすると「ロゴ画像」を表示します。</small></div><button class="btn" data-action="edit-logo">変更</button></div>
+        <div class="settings-row"><div><strong>PWA / オフラインキャッシュ</strong><small>${swReady?'HTTPSまたはlocalhostで利用できます。完全なService Worker登録には同じフォルダの sw.js が必要です。':'file:// で開いています。PWA登録にはHTTPSのWebサーバーが必要です。'}</small></div><button class="btn" data-action="download-sw">sw.jsを書き出す</button></div>
+      </div><p class="helper">単一HTMLの中にManifest生成とService Workerのソース定義を含めています。ブラウザのセキュリティ仕様により、Service Worker本体は通常のHTML内から直接登録できないため、配信する場合は同じフォルダに書き出した <code>sw.js</code> を置いてください。OCRライブラリは読み込み操作時にのみネットワークからロードされます。</p>`;
+      showModal('設定',body,`<button class="btn" data-action="close-modal">閉じる</button>`);
+    }
+    function openShare() {
+      const payload=toBase64Url(JSON.stringify(state));
+      const url=new URL(location.href); url.searchParams.set('share',payload); url.hash='';
+      const shareUrl=url.toString();
+      const body=`<div class="notice">共有URLを開いた相手には、取り込み確認画面が表示されます。URLには時間割やメモの内容が含まれるため、共有先に注意してください。</div><div class="field"><label for="shareUrl">共有URL</label><textarea id="shareUrl" readonly style="min-height:100px">${esc(shareUrl)}</textarea></div><p class="helper">URLが長すぎる場合や、ファイルで渡したい場合はJSON書き出しを使ってください。ホスティングされていない file:// のURLは、別の端末から開けないことがあります。</p>`;
+      showModal('時間割を共有',body,`<button class="btn" data-action="close-modal">閉じる</button><button class="btn" data-action="export-json">JSON保存</button><button class="btn primary" data-action="copy-share">URLをコピー</button>`);
+    }
+    function toBase64Url(text) { const bytes=new TextEncoder().encode(text); let binary=''; bytes.forEach(b=>binary+=String.fromCharCode(b)); return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+    function fromBase64Url(value) { const normal=value.replace(/-/g,'+').replace(/_/g,'/'); const padded=normal+'='.repeat((4-normal.length%4)%4); const binary=atob(padded); const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0)); return new TextDecoder().decode(bytes); }
+    function checkSharedURL() {
+      const val=new URL(location.href).searchParams.get('share'); if(!val) return;
+      try { pendingSharedState=sanitizeState(JSON.parse(fromBase64Url(val))); const body=`<div class="notice">共有URLに時間割データが含まれています。取り込むと、このブラウザに保存されている現在の時間割が置き換わります。</div><p>共有元の表示日：<strong>${esc(pendingSharedState.selectedDate||'—')}</strong></p><p>読み込まれた日付データ：${Object.keys(pendingSharedState.schedule||{}).length}日分</p>`; showModal('共有された時間割',body,`<button class="btn" data-action="skip-shared">取り込まない</button><button class="btn primary" data-action="accept-shared">この端末に取り込む</button>`,false,false); } catch(e) { console.warn(e); }
+    }
+    function acceptShared() {
+      if(!pendingSharedState) return;
+      state=sanitizeState(pendingSharedState); persistState(); pendingSharedState=null;
+      const url=new URL(location.href); url.searchParams.delete('share'); history.replaceState({},'',url.pathname+url.search+url.hash);
+      closeModal(); render();
+    }
+    function openLogoEditor() {
+      const body=`<div class="field"><label for="logoUrlInput">Imgur画像URL</label><input id="logoUrlInput" type="url" value="${escapeAttr(state.logoUrl||LOGO_IMAGE_URL)}" placeholder="https://i.imgur.com/example.png"></div><p class="helper">画像は切り抜かず、表示領域に合わせて縦横比を維持します。空欄なら水色のロゴ枠が表示されます。</p>`;
+      showModal('ロゴ画像を設定',body,`<button class="btn" data-action="close-modal">キャンセル</button><button class="btn primary" data-action="save-logo">保存</button>`);
+    }
+    function openOCRImport() {
+      ocrFile=null; ocrSourceImage=null; ocrProcessedCanvas=null; ocrRawText=''; ocrDraft=null; ocrBusy=false;
+      const body=`<div class="notice">時間割の写真・スクリーンショットを選択します。前処理とOCRはこの画面で実行し、抽出後は曜日ごとの表で修正できます。</div>
+        <div class="field"><label for="ocrFile">画像（カメラ撮影またはファイル選択）</label><input id="ocrFile" type="file" accept="image/*" capture="environment"></div>
+        <canvas id="ocrCanvas" class="ocr-preview" hidden></canvas>
+        <div class="ocr-controls"><div class="field"><label for="ocrRotate">傾き補正：<span id="rotateVal">0°</span></label><input id="ocrRotate" type="range" min="-12" max="12" step="1" value="0"></div><div class="field"><label for="ocrContrast">コントラスト：<span id="contrastVal">1.35</span></label><input id="ocrContrast" type="range" min="0.8" max="2.2" step="0.05" value="1.35"></div></div>
+        <div class="ocr-progress"><span id="ocrProgress"></span></div><div id="ocrStatus" class="ocr-status">画像を選択してください。OCRライブラリはまだ読み込まれていません。</div>
+        <p class="helper">自動前処理：グレースケール化、コントラスト調整、シャープ化。透視変形や強い台形ゆがみは完全には自動補正できないため、必要なら画像を回転・撮り直してください。</p>`;
+      const footer=`<button class="btn" data-action="close-modal">キャンセル</button><button class="btn" data-action="choose-sample">サンプル表で試す</button><button class="btn primary" data-action="run-ocr" id="runOcrButton" disabled>OCRを実行</button>`;
+      showModal('時間割読み込み',body,footer,true);
+      const fileInput=document.getElementById('ocrFile');
+      fileInput.addEventListener('change', async e=>{const f=e.target.files?.[0]; if(f) await loadOCRImage(f);});
+      document.getElementById('ocrRotate').addEventListener('input',e=>{document.getElementById('rotateVal').textContent=`${e.target.value}°`;if(ocrSourceImage)drawProcessedOCR();});
+      document.getElementById('ocrContrast').addEventListener('input',e=>{document.getElementById('contrastVal').textContent=Number(e.target.value).toFixed(2);if(ocrSourceImage)drawProcessedOCR();});
+    }
+    async function loadOCRImage(file) {
+      if(!file.type.startsWith('image/')) { setOCRStatus('画像ファイルを選択してください。'); return; }
+      ocrFile=file;
+      try { const url=URL.createObjectURL(file); const img=new Image(); img.onload=()=>{ocrSourceImage=img; drawProcessedOCR(); URL.revokeObjectURL(url);}; img.onerror=()=>{setOCRStatus('画像を開けませんでした。');URL.revokeObjectURL(url);}; img.src=url; }
+      catch(e) { setOCRStatus('画像を読み込めませんでした。'); }
+    }
+    function drawProcessedOCR() {
+      const canvas=document.getElementById('ocrCanvas'); if(!canvas||!ocrSourceImage) return;
+      const img=ocrSourceImage, angle=(Number(document.getElementById('ocrRotate')?.value)||0)*Math.PI/180;
+      const w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+      const cw=Math.ceil(Math.abs(w*Math.cos(angle))+Math.abs(h*Math.sin(angle))), ch=Math.ceil(Math.abs(h*Math.cos(angle))+Math.abs(w*Math.sin(angle)));
+      const scale=Math.min(1,2200/Math.max(cw,ch)); canvas.width=Math.max(1,Math.round(cw*scale)); canvas.height=Math.max(1,Math.round(ch*scale));
+      const ctx=canvas.getContext('2d',{willReadFrequently:true}); ctx.save();ctx.translate(canvas.width/2,canvas.height/2);ctx.rotate(angle);ctx.drawImage(img,-w*scale/2,-h*scale/2,w*scale,h*scale);ctx.restore();
+      const imageData=ctx.getImageData(0,0,canvas.width,canvas.height), d=imageData.data; const contrast=Number(document.getElementById('ocrContrast')?.value)||1.35;
+      for(let i=0;i<d.length;i+=4) { const gray=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2]; const val=Math.max(0,Math.min(255,(gray-128)*contrast+128)); d[i]=d[i+1]=d[i+2]=val; }
+      ctx.putImageData(imageData,0,0);
+      // 軽いアンシャープ処理。大きな画像でも負荷が跳ねないよう、低コストな近傍フィルタを使用。
+      const src=ctx.getImageData(0,0,canvas.width,canvas.height), pix=src.data, out=new Uint8ClampedArray(pix);
+      for(let y=1;y<canvas.height-1;y++) for(let x=1;x<canvas.width-1;x++) { const k=(y*canvas.width+x)*4; for(let c=0;c<3;c++) { const neighbor=(pix[k-4+c]+pix[k+4+c]+pix[k-canvas.width*4+c]+pix[k+canvas.width*4+c])/4; out[k+c]=Math.max(0,Math.min(255,pix[k+c]+0.38*(pix[k+c]-neighbor))); } }
+      src.data.set(out); ctx.putImageData(src,0,0); canvas.hidden=false;
+      const runBtn=document.getElementById('runOcrButton'); if(runBtn) runBtn.disabled=false;
+      setOCRStatus('画像を前処理しました。OCRを実行すると、認識ライブラリを初めて読み込みます。');
+    }
+    function setOCRStatus(text, progress=null) {
+      const n=document.getElementById('ocrStatus'); if(n) n.textContent=text;
+      const bar=document.getElementById('ocrProgress'); if(bar&&progress!==null) bar.style.width=`${Math.max(0,Math.min(100,progress))}%`;
+    }
+    async function runOCR() {
+      if(!ocrProcessedCanvas||ocrBusy) { if(!ocrProcessedCanvas) setOCRStatus('先に画像を選択してください。'); return; }
+      ocrBusy=true; const btn=document.getElementById('runOcrButton'); if(btn)btn.disabled=true; setOCRStatus('OCRライブラリを読み込んでいます（初回は少し時間がかかります）…',3);
+      let worker=null;
+      try {
+        const mod=await import(TESSERACT_MODULE_URL); const Tesseract=mod.default||mod;
+        worker=await Tesseract.createWorker('jpn+eng',1,{logger:m=>{if(m.status){const p=m.progress?Math.round(m.progress*100):0;setOCRStatus(`OCR処理中：${m.status}${p?` ${p}%`:''}`,p);}}});
+        const result=await worker.recognize(ocrProcessedCanvas); ocrRawText=result?.data?.text||'';
+        setOCRStatus(`認識完了。${ocrRawText.length}文字を抽出しました。確認用の編集表を開きます。`,100);
+        await worker.terminate(); worker=null; ocrBusy=false; openOCRGridEditor(ocrRawText);
+      } catch(err) {
+        console.error(err); setOCRStatus('OCRの読み込み・実行に失敗しました。インターネット接続を確認するか、サンプル表／手入力で続けてください。');
+        const status=document.getElementById('ocrStatus'); if(status) status.title=String(err);
+      } finally { if(worker) try{await worker.terminate();}catch{} ocrBusy=false; const b=document.getElementById('runOcrButton'); if(b)b.disabled=!ocrProcessedCanvas; }
+    }
+    function createDraftFromCurrentWeek() {
+      const dates=datesInWeek(state.selectedDate); ensureDates(dates);
+      const grid=Array.from({length:7},(_,r)=>dates.map(date=>({...getCell(date,r+1),subject:getCell(date,r+1).subject||''})));
+      const merges=state.merges.filter(m=>dates.includes(m.startDate));
+      return {dates,grid,merges,raw:ocrRawText};
+    }
+    function parseOCRSubjects(text) {
+      let normalized=text.replace(/[\u3000\s]+/g,' ');
+      const found=[];
+      const names=[...SUBJECT_NAMES].sort((a,b)=>b.length-a.length);
+      // 認識テキストから既知の教科名候補を抽出。OCRの読み順は不定なため、後で表上で確認・補正します。
+      for(const word of names) { const re=new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'); let m; while((m=re.exec(normalized))!==null) found.push({word:m[0],index:m.index}); }
+      found.sort((a,b)=>a.index-b.index);
+      const ordered=[]; let last=-1;
+      for(const x of found) { if(x.index>=last && !ordered.some(y=>y.index===x.index)) { ordered.push(x); last=x.index+x.word.length; } }
+      return ordered.map(x=>x.word.replace('英コミュⅠ','英コミI').replace('英コミュ','英コミI').replace('地理総合','地理総').replace('生物基礎','生基').replace('化学基礎','化基').replace('数学I','数IA'));
+    }
+    function newOCRDraft(text, useSample=false) {
+      const dates=datesInWeek(state.selectedDate); const grid=Array.from({length:7},()=>Array.from({length:5},()=>'')); let fullDay=null;
+      if(useSample) {
+        const samples={
+          '2026-10-26':['保健','英コミI','化基','生基','数IA','国語','地理総'],
+          '2026-10-27':['国語','数IA','家庭','地理総','家庭','体育',''],
+          '2026-10-28':['校内大学進学相談会','','','','','',''],
+          '2026-10-29':['歴史総','論表I','体育','国語','数IA','総合探究','総合探究'],
+          '2026-10-30':['論表I','生基','数IA','数IA','国語','歴史総','']
+        };
+        dates.forEach((date,c)=>{ const row=samples[date]||Array(7).fill(''); row.forEach((sub,r)=>grid[r][c]=sub); if(date==='2026-10-28')fullDay={col:c,subject:'校内大学進学相談会'}; });
+      } else {
+        const subjects=parseOCRSubjects(text);
+        let k=0;
+        // 認識結果を行順の候補として仮配置。必ず右の表で誤認識・位置を直せるようにする。
+        for(let r=0;r<7;r++) for(let c=0;c<5;c++) {
+          const date=dates[c];
+          if(date==='2026-10-28' && /校内大学進学相談会/.test(text)) continue;
+          if(k<subjects.length) grid[r][c]=subjects[k++];
+        }
+        const wednesday=dates.indexOf(addDays(mondayOf(state.selectedDate),2));
+        if(wednesday>=0 && /校内大学進学相談会/.test(text)) { grid[0][wednesday]='校内大学進学相談会'; for(let r=1;r<7;r++) grid[r][wednesday]=''; fullDay={col:wednesday,subject:'校内大学進学相談会'}; }
+      }
+      return {dates,grid,fullDay,raw:text,useSample};
+    }
+    function openOCRGridEditor(text, useSample=false) {
+      ocrDraft=newOCRDraft(text,useSample);
+      const gridRows=ocrDraft.grid.map((row,r)=>`<tr><th>${r+1}</th>${row.map((subject,c)=>`<td><input type="text" data-ocr-cell="${r},${c}" value="${escapeAttr(subject)}" aria-label="${DOW[parseISO(ocrDraft.dates[c]).getDay()]}曜日 ${r+1}時間目"></td>`).join('')}</tr>`).join('');
+      const body=`<div class="notice">OCR結果は候補として配置されています。読み取り順や結合セルは画像によって変わるため、教科名・曜日・コマ位置を確認してから保存してください。</div>
+        <div class="field"><label for="ocrRawText">OCRで抽出した文字（必要なら修正）</label><textarea id="ocrRawText" class="ocr-textarea">${esc(text)}</textarea></div>
+        <div class="field"><label for="ocrStartDate">この表の月曜日の日付</label><input id="ocrStartDate" type="date" value="${ocrDraft.dates[0]}"><p class="helper">開始日を変えると、表の日付がその週の月曜日から金曜日として更新されます。</p></div>
+        <div class="ocr-grid-wrap"><table class="ocr-grid"><thead><tr><th>時限</th>${ocrDraft.dates.map(date=>`<th>${parseISO(date).getMonth()+1}/${parseISO(date).getDate()}（${DOW[parseISO(date).getDay()]}）</th>`).join('')}</tr></thead><tbody>${gridRows}</tbody></table></div>
+        <div class="field" style="margin-top:12px"><label class="task-check"><input type="checkbox" id="ocrMergeWed" ${ocrDraft.fullDay?'checked':''}>水曜日の「校内大学進学相談会」を1〜7時間目の縦結合セルとして保存</label></div>`;
+      showModal('OCR結果を編集',body,`<button class="btn" data-action="close-modal">キャンセル</button><button class="btn primary" data-action="save-ocr-draft">この内容で時間割に反映</button>`,true);
+      document.getElementById('ocrStartDate').addEventListener('change',e=>{if(!e.target.value)return;const next=mondayOf(e.target.value); const current=ocrDraft.dates[0]; const shift=dateDelta(next,current); ocrDraft.dates=ocrDraft.dates.map(d=>addDays(d,shift)); const ths=modalRoot.querySelectorAll('.ocr-grid thead th'); ocrDraft.dates.forEach((d,i)=>{if(ths[i+1])ths[i+1].innerHTML=`${parseISO(d).getMonth()+1}/${parseISO(d).getDate()}（${DOW[parseISO(d).getDay()]}）`;});});
+    }
+    function saveOCRDraft() {
+      if(!ocrDraft)return;
+      const startInput=document.getElementById('ocrStartDate')?.value||ocrDraft.dates[0]; const start=mondayOf(startInput); const dates=Array.from({length:5},(_,i)=>addDays(start,i));
+      const grid=Array.from({length:7},(_,r)=>dates.map((date,c)=>modalRoot.querySelector(`[data-ocr-cell="${r},${c}"]`)?.value.trim()||''));
+      const mergeWed=document.getElementById('ocrMergeWed')?.checked;
+      const toRemove=new Set(dates); state.merges=state.merges.filter(m=>!toRemove.has(m.startDate)&&!dates.some(d=>Array.from({length:m.colSpan||1},(_,i)=>addDays(m.startDate,i)).includes(d)));
+      dates.forEach((date,c)=>{
+        ensureDay(state,date);
+        for(let p=1;p<=7;p++) {
+          const subject=grid[p-1][c]; const old=getCell(date,p);
+          if(subject) Object.assign(old,{subject,color:SUBJECT_COLOR[subject]||old.color||'blue'});
+          else Object.assign(old,{subject:'',bring:'',quiz:'',location:'',homework:'',memo:'',color:'blue'});
+        }
+      });
+      if(mergeWed) {
+        const wedCol=2, date=dates[wedCol]; getCell(date,1).subject=getCell(date,1).subject||'校内大学進学相談会';
+        state.merges.push({id:`ocr-wed-${Date.now()}`,startDate:date,startPeriod:1,rowSpan:7,colSpan:1});
+      }
+      state.selectedDate=datesInWeek(state.selectedDate).includes(state.selectedDate)?state.selectedDate:dates[0];
+      // 表の日付に移動して、ユーザーが読み込んだ時間割を確認できるようにします。
+      state.selectedDate=dates[0]; state.view='week'; syncMerges(state); persistState(); closeModal(); render();
+    }
+    function createManifest() {
+      const iconSvg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="36" fill="#d0eaff"/><rect x="25" y="28" width="142" height="136" rx="12" fill="#f8f9fd" stroke="#697586" stroke-width="5"/><path d="M25 63h142M70 63v101M117 63v101M25 98h142M25 132h142" stroke="#697586" stroke-width="4"/><path d="M46 15v28M146 15v28" stroke="#53749e" stroke-width="8" stroke-linecap="round"/></svg>';
+      const manifest={name:'時間割ノート',short_name:'時間割',start_url:location.href.split('?')[0],display:'standalone',background_color:'#f7f8fd',theme_color:'#eef0f8',icons:[{src:'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(iconSvg),sizes:'192x192',type:'image/svg+xml'}]};
+      const blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'}); const link=document.getElementById('manifestLink'); link.href=URL.createObjectURL(blob);
+    }
+
+    document.addEventListener('click', async e=> {
+      const btn=e.target.closest('[data-action]'); if(!btn) return;
+      const a=btn.dataset.action;
+      if(a==='toggle-drawer') { drawer.classList.contains('open')?closeDrawer():openDrawer(); return; }
+      if(a==='close-modal') { closeModal(); return; }
+      if(a==='set-view') { state.view=btn.dataset.view; closeDrawer(); persistState(); render(); return; }
+      if(a==='today') { state.selectedDate=currentISO(); closeDrawer(); persistState(); render(); return; }
+      if(a==='navigate') { const step=Number(btn.dataset.step)||1; const delta=state.view==='week'?7:state.view==='month'?30:state.view==='three'?3:1; state.selectedDate=addDays(state.selectedDate,step*delta); render(); return; }
+      if(a==='choose-date') { closeDrawer(); openDatePicker(btn.dataset.date||state.selectedDate); return; }
+      if(a==='select-date') { state.selectedDate=btn.dataset.date; state.view='day'; persistState(); render(); return; }
+      if(a==='edit-slot') { closeDrawer(); openSlotEditor(btn.dataset.date,Number(btn.dataset.index)); return; }
+      if(a==='edit-period') { closeDrawer(); openSlotEditor(btn.dataset.date,slotIndexForPeriod(Number(btn.dataset.period))); return; }
+      if(a==='add-slot') { const empty=state.schedule[state.selectedDate]?.slots.findIndex((s,i)=>i!==5&&!s.subject); openSlotEditor(state.selectedDate,empty>=0?empty:1); return; }
+      if(a==='save-slot') { saveSlotFromModal(); return; }
+      if(a==='clear-slot') { clearSelectedSlot(); return; }
+      if(a==='apply-date') { const date=document.getElementById('jumpDate')?.value; if(date){state.selectedDate=date;persistState();closeModal();render();} return; }
+      if(a==='open-search') { closeDrawer(); openSearch(); return; }
+      if(a==='open-tasks') { closeDrawer(); openTasks(); return; }
+      if(a==='open-profile') { closeDrawer(); openProfile(); return; }
+      if(a==='open-settings') { closeDrawer(); openSettings(); return; }
+      if(a==='open-import') { closeDrawer(); openOCRImport(); return; }
+      if(a==='open-share') { openShare(); return; }
+      if(a==='export-json') { downloadBlob(`時間割バックアップ-${state.selectedDate}.json`,JSON.stringify(state,null,2)); return; }
+      if(a==='import-json') { jsonFileInput.click(); return; }
+      if(a==='download-sw') { downloadBlob('sw.js',SW_SOURCE,'text/javascript'); return; }
+      if(a==='edit-logo') { openLogoEditor(); return; }
+      if(a==='save-logo') { state.logoUrl=document.getElementById('logoUrlInput')?.value.trim()||'';persistState();closeModal();render();return; }
+      if(a==='copy-share') { const input=document.getElementById('shareUrl'); if(!input)return; try { await navigator.clipboard.writeText(input.value); btn.textContent='コピーしました'; } catch { input.focus();input.select();document.execCommand('copy');btn.textContent='コピーしました'; } return; }
+      if(a==='accept-shared') { acceptShared(); return; }
+      if(a==='skip-shared') { pendingSharedState=null; closeModal(); const url=new URL(location.href); url.searchParams.delete('share'); history.replaceState({},'',url.pathname+url.search+url.hash); return; }
+      if(a==='run-ocr') { await runOCR(); return; }
+      if(a==='choose-sample') { ocrRawText=''; openOCRGridEditor('',true); return; }
+      if(a==='save-ocr-draft') { saveOCRDraft(); return; }
+      if(a==='search-result') { state.selectedDate=btn.dataset.date; state.view='day'; const idx=Number(btn.dataset.index); closeModal(); render(); openSlotEditor(state.selectedDate,idx); return; }
+    });
+    document.addEventListener('input', e=> {
+      if(e.target.id==='searchInput') drawSearchResults(e.target.value);
+    });
+    document.addEventListener('change', e=> {
+      if(e.target.id==='monthSelect') { const d=parseISO(state.selectedDate); const y=d.getFullYear(), m=Number(e.target.value), day=Math.min(d.getDate(),new Date(y,m,0).getDate()); state.selectedDate=iso(new Date(y,m-1,day,12)); render(); return; }
+      if(e.target.matches('[data-action="toggle-task"]')) { const key=e.target.dataset.task; state.doneTasks=e.target.checked?[...new Set([...state.doneTasks,key])]:state.doneTasks.filter(x=>x!==key);persistState();openTasks();return; }
+    });
+    drawerBackdrop.addEventListener('click',closeDrawer);
+    modalRoot.addEventListener('click',e=>{if(e.target===modalRoot)closeModal();});
+    jsonFileInput.addEventListener('change', async e=>{
+      const file=e.target.files?.[0]; if(!file)return;
+      try { const parsed=JSON.parse(await file.text()); state=sanitizeState(parsed);persistState();closeModal();render(); }
+      catch(err) { alert('JSONファイルを読み込めませんでした。時間割のバックアップファイルを選択してください。'); }
+      jsonFileInput.value='';
+    });
+    function initServiceWorker() {
+      if(!('serviceWorker' in navigator)) return;
+      if(!(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')) return;
+      // 配信用に sw.js を同じフォルダへ置いた場合のみ成功します。未配置ならアプリ本体の動作には影響しません。
+      navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    }
+    createManifest(); render(); checkSharedURL(); initServiceWorker();
+  </script>
+</body>
+</html>
