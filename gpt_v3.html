@@ -611,7 +611,27 @@ async function runGeminiOCR(file) {
     if(!response.ok){const detail=payload?.error?.message||`HTTP ${response.status}`;throw new Error(detail);}
     const output=(payload?.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('').trim();
     if(!output)throw new Error('Geminiから結果が返りませんでした。画像のサイズやAPI利用上限を確認してください。');
-    const parsed=JSON.parse(output); if(!Array.isArray(parsed.lessons))throw new Error('返答の形式が時間割データではありませんでした。');
+    // Gemini の返答から Markdown のコードフェンスを取り除く
+let cleanedOutput = output.trim();
+
+cleanedOutput = cleanedOutput
+  .replace(/^```(?:json)?\s*/i, "")
+  .replace(/\s*```\s*$/, "")
+  .trim();
+
+// JSON 部分を解析する
+let parsed;
+
+try {
+  parsed = JSON.parse(cleanedOutput);
+} catch (error) {
+  console.error("Gemini JSON parse failed:", error);
+  console.error("Gemini output preview:", cleanedOutput.slice(0, 1000));
+
+  throw new Error(
+    "Geminiの返答をJSONとして解析できませんでした。画像を再読み込みして再試行してください。"
+  );
+} if(!Array.isArray(parsed.lessons))throw new Error('返答の形式が時間割データではありませんでした。');
     importRows=parsed.lessons.map(r=>{
       let weekday=mapGeminiWeekday(r.weekday); let slot=mapGeminiSlot(r.slot,'1'); let endSlot=mapGeminiSlot(r.endSlot,slot); let allDay=Boolean(r.allDay);
       if(allDay){slot='朝';endSlot='放課後';}
