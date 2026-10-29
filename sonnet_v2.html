@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#eceef3">
+<title>時間割</title>
+<link rel="manifest" id="mf">
+<script>
+/* ▼ ロゴ画像（Imgur）をここで指定 */
+const LOGO_IMAGE_URL = 'https://i.imgur.com/xxx.png';
+</script>
+<style>
+:root{--bg:#f8f8ff;--bar:#eceef3;--ink:#1c1b1f;--sub:#49454f;--line:#444;--acc:#d3e3fd;--warn:#d93025;
+--c0:#ffe0e0;--c1:#e0eeff;--c2:#e8e0f8;--c3:#ffeedd;--c4:#e6f6e0;--c5:#fff7cc;--c6:#e5e5e5}
+*{box-sizing:border-box}API
+html,body{height:100%;margin:0}
+body{font-family:"Hiragino Sans","Yu Gothic UI","Noto Sans JP",system-ui,sans-serif;background:#c9ccd4;color:var(--ink);display:flex;justify-content:center}
+#app{position:relative;width:100%;max-width:520px;height:100%;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 0 24px #0003}
+@media(min-width:900px){#app{max-width:760px;height:calc(100% - 32px);margin:16px 0;border-radius:20px}}
+header{display:flex;align-items:center;gap:6px;padding:calc(8px + env(safe-area-inset-top)) 12px 8px;background:var(--bar)}
+header h1{font-size:18px;font-weight:500;margin:0 0 0 6px;flex:1;cursor:pointer;position:relative}
+header input[type=date]{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer}
+.ib{width:40px;height:40px;border:0;background:none;border-radius:50%;display:grid;place-items:center;cursor:pointer;color:var(--sub)}
+.ib:hover{background:#0001}
+.ib svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.av{width:32px;height:32px;border-radius:50%;background:#5b7fc7;color:#fff;display:grid;place-items:center;font-size:14px}
+#main{flex:1;overflow:auto}
+.heads{display:grid;position:sticky;top:0;background:var(--bg);z-index:2;padding:4px 0}
+.hd{text-align:center;font-size:12px;color:var(--sub);line-height:1.2}
+.hd b{display:block;font-size:20px;font-weight:500;color:var(--ink)}
+.hd.today b{color:#fff;background:#1a73e8;border-radius:50%;width:32px;height:32px;line-height:32px;margin:2px auto 0}
+.row{display:grid;align-items:stretch;min-height:44px}
+.lab{display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--sub);padding:2px}
+.cell{padding:2px 4px 2px 2px;min-width:0}
+.card{height:100%;border:1.5px solid var(--line);border-radius:8px;padding:4px 8px;cursor:pointer;overflow:hidden;position:relative}
+.card.warn{border-color:var(--warn);box-shadow:0 0 0 2px #d9302544}
+.card.warn::after{content:"！";position:absolute;right:6px;top:3px;color:var(--warn);font-weight:700}
+.card .t{font-weight:700;font-size:17px;line-height:1.3}
+.card .d{font-size:12px;padding-left:8px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cols .card .t{font-size:13px}.cols .card .d{font-size:10px;padding:0}
+.empty{height:100%;border-radius:8px}
+.fab{position:absolute;right:20px;bottom:calc(24px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:16px;border:1.5px solid var(--line);background:var(--acc);font-size:28px;cursor:pointer;box-shadow:0 3px 8px #0003;z-index:3}
+.scrim{position:absolute;inset:0;background:#0006;z-index:10;opacity:0;pointer-events:none;transition:.2s}
+.scrim.on{opacity:1;pointer-events:auto}
+#drawer{position:absolute;top:0;bottom:0;left:0;width:min(320px,82%);background:var(--bar);border-radius:0 20px 20px 0;z-index:11;transform:translateX(-102%);transition:transform .22s;overflow:auto;padding:12px 12px calc(12px + env(safe-area-inset-bottom))}
+#drawer.on{transform:none}
+.logo{display:block;width:100%;height:auto;max-height:160px;object-fit:contain;margin:0 0 12px;background:#0ff;min-height:40px}
+.mi{display:flex;align-items:center;gap:16px;width:100%;border:0;background:none;padding:14px 16px;border-radius:28px;font-size:13px;color:var(--ink);cursor:pointer;text-align:left}
+.mi.on{background:var(--acc)}
+.mi svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8}
+hr{border:0;border-top:1px solid #0002;margin:6px 0}
+dialog{border:0;border-radius:20px;padding:0;width:min(94vw,640px);max-height:90vh;color:var(--ink)}
+dialog::backdrop{background:#0006}
+.dlg{padding:18px;display:flex;flex-direction:column;gap:10px}
+.dlg h2{margin:0;font-size:18px}
+.dlg label{font-size:12px;color:var(--sub);display:flex;flex-direction:column;gap:3px}
+input,textarea,select{font:inherit;font-size:14px;padding:8px;border:1px solid #999;border-radius:8px;background:#fff;min-width:0;width:100%}
+.btns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.btn{border:0;border-radius:20px;padding:10px 18px;background:#1a73e8;color:#fff;font-size:14px;cursor:pointer}
+.btn.g{background:#e8eaf0;color:var(--ink)}.btn.r{background:#fce8e6;color:var(--warn)}
+.tw{overflow:auto;max-height:55vh}
+table{border-collapse:collapse;width:100%}
+td,th{padding:2px;font-size:12px}th{position:sticky;top:0;background:#fff}
+td input{padding:6px;font-size:13px;min-width:70px}
+.sw{display:flex;gap:6px}.sw i{width:26px;height:26px;border-radius:50%;border:2px solid #666;cursor:pointer}.sw i.on{outline:3px solid #1a73e8}
+#toast{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);background:#323232;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:20;display:none;max-width:90%}
+.mg{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:8px}
+.mg div{aspect-ratio:1;display:grid;place-items:center;border-radius:12px;cursor:pointer;font-size:14px}
+.mg div:hover{background:var(--acc)}.mg .today{background:#1a73e8;color:#fff}
+.sch h3{margin:12px 14px 4px;font-size:14px}.sch p{margin:2px 18px;font-size:13px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <button class="ib" id="bMenu" aria-label="メニュー"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+    <h1 id="ttl"><span id="ttlT">10月 ▾</span><input type="date" id="dp"></h1>
+    <button class="ib" id="bSearch" aria-label="検索"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/></svg></button>
+    <button class="ib" id="bToday" aria-label="今日"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><text x="12" y="16" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" id="tdn">21</text></svg></button>
+    <button class="ib" id="bCheck" aria-label="持ち物・忘れ物"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></button>
+    <div class="av">U</div>
+  </header>
+  <div id="main"></div>
+  <button class="fab" id="bAdd" aria-label="コマを追加">+</button>
+  <div class="scrim" id="scrim"></div>
+  <nav id="drawer">
+    <img class="logo" id="logo" alt="ロゴ">
+    <button class="mi" data-v="schedule"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="6" rx="1"/><rect x="4" y="14" width="16" height="6" rx="1"/></svg>スケジュール</button>
+    <button class="mi on" data-v="day"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1" fill="currentColor"/></svg>日</button>
+    <button class="mi" data-v="3day"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1"/><path d="M9.5 5v14M14.5 5v14"/></svg>3日間</button>
+    <button class="mi" data-v="week"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1"/><path d="M8 5v14M12 5v14M16 5v14"/></svg>週</button>
+    <button class="mi" data-v="month"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M12 4v16M4 12h16"/></svg>月</button>
+    <hr>
+    <button class="mi" id="mOcr"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>時間割読み込み</button>
+    <button class="mi" id="mSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>設定</button>
+  </nav>
+  <div id="toast"></div>
+</div>
+<input type="file" id="file" accept="image/*" hidden>
+<dialog id="dlg"></dialog>
+
+<script id="swsrc" type="text/plain">
+const C='tt-v1',A=['./','./timetable.html'];
+self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(A)).catch(()=>{}));self.skipWaiting()});
+self.addEventListener('activate',e=>e.waitUntil(clients.claim()));
+self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;
+e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(n=>{const u=new URL(e.request.url);
+if(n.ok&&(u.origin===location.origin||u.host.includes('jsdelivr')||u.host.includes('imgur'))){const cp=n.clone();caches.open(C).then(c=>c.put(e.request,cp))}return n}).catch(()=>caches.match('./timetable.html'))))});
+</script>
+<script>
+'use strict';
+/* ===== 定数 ===== */
+const PERIODS = [['m','朝'],['1','1'],['2','2'],['3','3'],['4','4'],['l','昼休み'],['5','5'],['6','6'],['7','7'],['a','放課後']];
+const DOW = ['日','月','火','水','木','金','土'];
+const COLORS = ['var(--c0)','var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)'];
+const KEY = 'timetable.v1', GKEY = 'timetable.gemini';
+/** data[曜日0-6][period] = {s:教科, c:色idx, rs:結合コマ数, i:持ち物, q:小テスト, p:場所, h:宿題, n:備考} */
+let data = load(), view = 'day', cur = new Date();
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+
+function load(){ try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d) return d; }catch{} return sample(); }
+function save(){ localStorage.setItem(KEY, JSON.stringify(data)); }
+function sample(){
+  const d = {};
+  const mk = (s,c,i='教科書、ノート、古文単語帳',h='2023年度模試過去問')=>({s,c,i,h,q:'',p:'',n:'',rs:1});
+  const day = {m:{s:'朝練',c:6,i:'',h:'',q:'',p:'',n:'',rs:1},'1':mk('国語',0),'2':mk('数学Ⅰ',1),'3':mk('英コミュⅠ',2),'4':mk('地理総合',3),
+    '5':mk('生物基礎',4),'6':mk('化学基礎',4),'7':mk('体育',6)};
+  for(let i=1;i<=5;i++) d[i] = JSON.parse(JSON.stringify(day));
+  return d;
+}
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const sameDay = (a,b) => ymd(a) === ymd(b);
+function toast(t,ms=2600){ const e=$('#toast'); e.textContent=t; e.style.display='block'; clearTimeout(toast.t); toast.t=setTimeout(()=>e.style.display='none',ms); }
+
+/* ===== 描画 ===== */
+function render(){
+  $('#ttlT').textContent = `${cur.getMonth()+1}月 ▾`; $('#dp').value = ymd(cur); $('#tdn').textContent = new Date().getDate();
+  document.querySelectorAll('.mi[data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === view));
+  $('#bAdd').style.display = (view==='month'||view==='schedule') ? 'none' : '';
+  const m = $('#main');
+  if(view==='month') return renderMonth(m);
+  if(view==='schedule') return renderSchedule(m);
+  const n = view==='day' ? 1 : view==='3day' ? 3 : 5;
+  let days = [];
+  if(view==='week'){ const mon = addDays(cur, -((cur.getDay()+6)%7)); for(let i=0;i<5;i++) days.push(addDays(mon,i)); }
+  else for(let i=0;i<n;i++) days.push(addDays(cur,i));
+  const g = `grid-template-columns:${n>1?'44px':'52px'} repeat(${n},1fr)`;
+  let h = `<div class="${n>1?'cols':''}"><div class="heads" style="${g}"><div></div>` +
+    days.map(d=>`<div class="hd ${sameDay(d,new Date())?'today':''}">${DOW[d.getDay()]}<b>${d.getDate()}</b></div>`).join('') + `</div>`;
+  const skip = days.map(()=>0);
+  for(const [id,label] of PERIODS){
+    h += `<div class="row" style="${g}"><div class="lab">${label}</div>`;
+    days.forEach((d,ci)=>{
+      if(skip[ci] > 0){ skip[ci]--; return; }
+      const c = (data[d.getDay()]||{})[id], span = c && c.s ? Math.max(1, c.rs||1) : 1;
+      if(span>1){ skip[ci] = span-1; }
+      const st = span>1 ? `style="grid-row:span ${span}"` : '';
+      h += `<div class="cell" ${st}>${cardHtml(c,d.getDay(),id)}</div>`;
+    });
+    h += `</div>`;
+  }
+  m.innerHTML = h + `<div style="height:96px"></div></div>`;
+}
+function cardHtml(c,dow,id){
+  if(!c || !c.s) return `<div class="empty" data-dow="${dow}" data-p="${id}" data-edit="1"></div>`;
+  const lines = [c.i&&`持ち物：${c.i}`, c.h&&`宿題：${c.h}`, c.q&&`小テスト：${c.q}`, c.p&&`場所：${c.p}`, c.n&&`備考：${c.n}`].filter(Boolean);
+  return `<div class="card ${c.n?'warn':''}" data-dow="${dow}" data-p="${id}" data-edit="1" style="background:${COLORS[c.c%7]}"><div class="t">${esc(c.s)}</div>${lines.map(l=>`<div class="d">${esc(l)}</div>`).join('')}</div>`;
+}
+function renderMonth(m){
+  const y = cur.getFullYear(), mo = cur.getMonth(), first = new Date(y,mo,1), last = new Date(y,mo+1,0);
+  let h = `<div class="mg">` + DOW.map(d=>`<span style="text-align:center;font-size:12px;color:var(--sub)">${d}</span>`).join('') + '<span></span>'.repeat(0);
+  h += '<div style="visibility:hidden"></div>'.repeat(first.getDay());
+  for(let d=1; d<=last.getDate(); d++){ const x = new Date(y,mo,d); h += `<div data-d="${ymd(x)}" class="${sameDay(x,new Date())?'today':''}">${d}</div>`; }
+  m.innerHTML = h + '</div>';
+}
+function renderSchedule(m){
+  let h = '<div class="sch">';
+  for(let i=1;i<=5;i++){
+    h += `<h3>${DOW[i]}曜日</h3>` + PERIODS.map(([id,l])=>{ const c=(data[i]||{})[id]; return c&&c.s ? `<p>${l}　${esc(c.s)}${c.n?' ⚠ '+esc(c.n):''}</p>` : ''; }).join('');
+  }
+  m.innerHTML = h + '</div>';
+}
+
+/* ===== コマ編集 ===== */
+function openCell(dow, id){
+  const c = Object.assign({s:'',c:0,rs:1,i:'',q:'',p:'',h:'',n:''}, (data[dow]||{})[id]||{});
+  const dlg = $('#dlg'), lab = PERIODS.find(p=>p[0]===id)[1];
+  dlg.innerHTML = `<form class="dlg" method="dialog"><h2>${DOW[dow]}曜 ${esc(lab)}</h2>
+  <label>教科<input id="f_s" value="${esc(c.s)}"></label>
+  <div class="sw" id="f_c">${COLORS.map((x,i)=>`<i data-i="${i}" style="background:${x}" class="${i===c.c?'on':''}"></i>`).join('')}</div>
+  <label>持ち物<input id="f_i" value="${esc(c.i)}"></label>
+  <label>小テスト<input id="f_q" value="${esc(c.q)}"></label>
+  <label>場所<input id="f_p" value="${esc(c.p)}"></label>
+  <label>宿題<input id="f_h" value="${esc(c.h)}"></label>
+  <label>備考・忘れ物（入力するとハイライト）<textarea id="f_n" rows="2">${esc(c.n)}</textarea></label>
+  <label>結合コマ数（縦に続くコマ数）<input id="f_r" type="number" min="1" max="10" value="${c.rs||1}"></label>
+  <div class="btns"><button type="button" class="btn r" id="f_del">削除</button><button type="button" class="btn g" id="f_x">閉じる</button><button type="button" class="btn" id="f_ok">保存</button></div></form>`;
+  let col = c.c;
+  dlg.querySelector('#f_c').onclick = e => { const i = e.target.dataset.i; if(i==null) return; col=+i; dlg.querySelectorAll('#f_c i').forEach(x=>x.classList.toggle('on',+x.dataset.i===col)); };
+  dlg.querySelector('#f_x').onclick = () => dlg.close();
+  dlg.querySelector('#f_del').onclick = () => { delete (data[dow]||{})[id]; save(); dlg.close(); render(); };
+  dlg.querySelector('#f_ok').onclick = () => {
+    const v = k => dlg.querySelector('#f_'+k).value.trim();
+    (data[dow] ??= {})[id] = {s:v('s'), c:col, i:v('i'), q:v('q'), p:v('p'), h:v('h'), n:v('n'), rs:Math.max(1,+v('r')||1)};
+    save(); dlg.close(); render();
+  };
+  dlg.showModal();
+}
+
+/* ===== 一括エディタ（OCR後の補正用） ===== */
+function openEditor(){
+  const dlg = $('#dlg'), days = [1,2,3,4,5,6];
+  dlg.innerHTML = `<div class="dlg"><h2>時間割エディタ</h2><div class="tw"><table><thead><tr><th></th>${days.map(d=>`<th>${DOW[d]}</th>`).join('')}</tr></thead><tbody>` +
+    PERIODS.map(([id,l])=>`<tr><th>${l}</th>${days.map(d=>`<td><input data-d="${d}" data-p="${id}" value="${esc(((data[d]||{})[id]||{}).s)}"></td>`).join('')}</tr>`).join('') +
+    `</tbody></table></div><div class="btns"><button class="btn g" id="e_share">共有URL</button><button class="btn g" id="e_x">閉じる</button><button class="btn" id="e_ok">保存</button></div></div>`;
+  dlg.querySelector('#e_x').onclick = () => dlg.close();
+  dlg.querySelector('#e_share').onclick = share;
+  dlg.querySelector('#e_ok').onclick = () => {
+    dlg.querySelectorAll('input[data-d]').forEach(inp => {
+      const d = inp.dataset.d, p = inp.dataset.p, s = inp.value.trim(); data[d] ??= {};
+      if(!s) delete data[d][p];
+      else data[d][p] = Object.assign({c:hashColor(s),rs:1,i:'',q:'',p:'',h:'',n:''}, data[d][p]||{}, {s});
+    });
+    save(); dlg.close(); render(); toast('保存しました');
+  };
+  dlg.showModal();
+}
+const hashColor = s => [...s].reduce((a,c)=>a+c.charCodeAt(0),0) % 6;
+
+/* ===== 共有 ===== */
+const b64e = o => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const b64d = s => JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g,'+').replace(/_/g,'/')))));
+async function share(){
+  const url = location.href.split('#')[0].split('?')[0] + '?s=' + b64e(data);
+  try{ if(navigator.share){ await navigator.share({title:'時間割',url}); return; } await navigator.clipboard.writeText(url); toast('共有URLをコピーしました'); }
+  catch{ prompt('共有URL', url); }
+}
+function checkIncoming(){
+  const s = new URLSearchParams(location.search).get('s'); if(!s) return;
+  try{
+    const inc = b64d(s), dlg = $('#dlg');
+    dlg.innerHTML = `<div class="dlg"><h2>共有された時間割</h2><p>自分の時間割に取り込みますか？（現在のデータは上書きされます）</p><div class="btns"><button class="btn g" id="i_x">キャンセル</button><button class="btn" id="i_ok">取り込む</button></div></div>`;
+    dlg.querySelector('#i_x').onclick = () => { dlg.close(); history.replaceState(null,'',location.pathname); };
+    dlg.querySelector('#i_ok').onclick = () => { data = inc; save(); dlg.close(); history.replaceState(null,'',location.pathname); render(); toast('取り込みました'); };
+    dlg.showModal();
+  }catch{ toast('共有URLを読み取れませんでした'); }
+}
+
+/* ===== OCR（ボタン押下時のみ動的ロード） ===== */
+function loadScript(src){ return new Promise((ok,ng)=>{ const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=ng; document.head.appendChild(s); }); }
+const fileToB64 = f => new Promise(ok=>{ const r=new FileReader(); r.onload=()=>ok(r.result.split(',')[1]); r.readAsDataURL(f); });
+async function ocr(file){
+  toast('解析中…', 60000);
+  const key = localStorage.getItem(GKEY);
+  try{
+    let table;
+    if(key){
+      const prompt = `この画像は学校の時間割表です。曜日(月〜土)と時限(朝,1〜7,昼休み,放課後)ごとの教科名を読み取り、次のJSONのみ返してください。結合セルは該当する各コマに同じ教科を入れ、空欄は空文字。{"月":{"朝":"","1":"","2":"","3":"","4":"","昼休み":"","5":"","6":"","7":"","放課後":""},"火":{...},...}`;
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:file.type||'image/jpeg',data:await fileToB64(file)}}]}],generationConfig:{responseMimeType:'application/json'}})});
+      if(!r.ok) throw new Error('Gemini API: '+r.status);
+      const j = await r.json();
+      table = JSON.parse(j.candidates[0].content.parts[0].text);
+    } else {
+      // APIキー未設定時のフォールバック: Tesseract.jsを今この時だけ読み込む
+      if(!window.Tesseract) await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
+      const { data:{ text } } = await Tesseract.recognize(file, 'jpn');
+      const lines = text.split('\n').map(s=>s.replace(/\s+/g,'')).filter(Boolean);
+      table = {'月':{}}; ['1','2','3','4','5','6','7'].forEach((p,i)=>table['月'][p]=lines[i]||'');
+      toast('簡易OCR結果です。設定でGemini APIキーを登録すると精度が上がります', 5000);
+    }
+    const ids = {'朝':'m','昼休み':'l','放課後':'a'};
+    DOW.forEach((dn,di)=>{ const col = table[dn]; if(!col) return; data[di] ??= {};
+      for(const [k,s] of Object.entries(col)){ const id = ids[k] || k; if(!PERIODS.some(p=>p[0]===id)) continue;
+        if(s) data[di][id] = Object.assign({c:hashColor(s),rs:1,i:'',q:'',p:'',h:'',n:''}, data[di][id]||{}, {s}); else delete data[di][id]; } });
+    render(); openEditor(); toast('読み取り完了。誤りを修正して保存してください');
+  }catch(e){ console.error(e); toast('読み込みに失敗: '+e.message, 5000); }
+}
+
+/* ===== 設定 ===== */
+function openSettings(){
+  const dlg = $('#dlg');
+  dlg.innerHTML = `<div class="dlg"><h2>設定</h2><label>Gemini APIキー（無料枠・この端末にのみ保存）<input id="s_k" type="password" value="${esc(localStorage.getItem(GKEY))}"></label>
+  <div class="btns"><button class="btn g" id="s_sh">時間割を共有</button><button class="btn g" id="s_ed">エディタ</button><button class="btn g" id="s_x">閉じる</button><button class="btn" id="s_ok">保存</button></div></div>`;
+  dlg.querySelector('#s_x').onclick = () => dlg.close();
+  dlg.querySelector('#s_sh').onclick = share;
+  dlg.querySelector('#s_ed').onclick = openEditor;
+  dlg.querySelector('#s_ok').onclick = () => { localStorage.setItem(GKEY, dlg.querySelector('#s_k').value.trim()); dlg.close(); toast('保存しました'); };
+  dlg.showModal();
+}
+
+/* ===== イベント ===== */
+const drawer = on => { $('#drawer').classList.toggle('on',on); $('#scrim').classList.toggle('on',on); };
+$('#bMenu').onclick = () => drawer(true);
+$('#scrim').onclick = () => drawer(false);
+document.querySelectorAll('.mi[data-v]').forEach(b => b.onclick = () => { view = b.dataset.v; drawer(false); render(); });
+$('#mOcr').onclick = () => { drawer(false); $('#file').click(); };
+$('#mSet').onclick = () => { drawer(false); openSettings(); };
+$('#file').onchange = e => { const f = e.target.files[0]; e.target.value=''; if(f) ocr(f); };
+$('#bToday').onclick = () => { cur = new Date(); render(); };
+$('#dp').onchange = e => { if(e.target.value){ cur = new Date(e.target.value+'T00:00'); render(); } };
+$('#bCheck').onclick = () => {
+  const t = addDays(new Date(),1), c = data[t.getDay()] || {};
+  const items = PERIODS.map(([id,l])=>c[id]).filter(x=>x&&x.s);
+  const w = items.filter(x=>x.n).map(x=>`${x.s}：${x.n}`);
+  toast(items.length ? `明日の持ち物：${[...new Set(items.flatMap(x=>(x.i||'').split(/[、,]/).filter(Boolean)))].join('、')||'なし'}${w.length?'\n⚠ '+w.join(' / '):''}` : '明日の予定はありません', 6000);
+};
+$('#bSearch').onclick = () => {
+  const q = prompt('教科名・メモを検索'); if(!q) return;
+  const hit = []; for(const d in data) for(const [id,c] of Object.entries(data[d])) if(JSON.stringify(c).includes(q)) hit.push(`${DOW[d]}曜 ${PERIODS.find(p=>p[0]===id)[1]}限 ${c.s}`);
+  toast(hit.length ? hit.join(' / ') : '見つかりません', 6000);
+};
+$('#bAdd').onclick = () => {
+  const c = data[cur.getDay()] || {}, free = PERIODS.find(([id])=>!(c[id]&&c[id].s));
+  openCell(cur.getDay(), free ? free[0] : '1');
+};
+$('#main').onclick = e => {
+  const t = e.target.closest('[data-edit]'); if(t) return openCell(+t.dataset.dow, t.dataset.p);
+  const d = e.target.closest('[data-d]'); if(d){ cur = new Date(d.dataset.d+'T00:00'); view='day'; render(); }
+};
+let sx = 0;
+$('#main').addEventListener('touchstart', e => sx = e.touches[0].clientX, {passive:true});
+$('#main').addEventListener('touchend', e => { const dx = e.changedTouches[0].clientX - sx; if(Math.abs(dx) > 80 && (view==='day'||view==='3day'||view==='week')){ cur = addDays(cur, (dx<0?1:-1)*(view==='week'?7:view==='3day'?3:1)); render(); } });
+
+/* ===== ロゴ・PWA ===== */
+$('#logo').src = LOGO_IMAGE_URL;
+$('#logo').onerror = function(){ this.removeAttribute('src'); this.style.height='64px'; };
+const icon = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="40" fill="#1a73e8"/><text x="96" y="124" font-size="90" text-anchor="middle" fill="#fff">時</text></svg>');
+$('#mf').href = URL.createObjectURL(new Blob([JSON.stringify({name:'時間割',short_name:'時間割',display:'standalone',start_url:location.pathname,background_color:'#eceef3',theme_color:'#eceef3',icons:[{src:icon,sizes:'192x192',type:'image/svg+xml',purpose:'any'}]})],{type:'application/manifest+json'}));
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  // sw.js として同階層に配置するのが確実。ファイルが無い場合は登録に失敗するだけで、アプリは通常動作します。
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+
+render(); checkIncoming();
+</script>
+</body>
+</html>
