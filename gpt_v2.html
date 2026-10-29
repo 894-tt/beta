@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f5f6fc">
+  <meta name="description" content="時間割と持ち物・小テスト・宿題をまとめて管理するアプリ">
+  <title>時間割ノート</title>
+  <link rel="manifest" id="app-manifest">
+  <style>
+    :root {
+      --page: #f5f6fc; --surface: #fff; --ink: #202124; --muted: #646a73;
+      --line: #d8dbe4; --accent: #3976d8; --accent-soft: #dce7fb;
+      --shadow: 0 6px 24px rgba(26, 34, 53, .14); --radius: 9px;
+    }
+    * { box-sizing: border-box; }
+    html { background: #e8eaf0; color: var(--ink); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; min-height: 100vh; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #80aaf3; outline-offset: 2px; }
+    .app-shell { width: min(100%, 1040px); min-height: 100vh; margin: 0 auto; background: var(--page); box-shadow: 0 0 36px #20212418; position: relative; overflow: hidden; }
+    .topbar { height: 68px; display: flex; align-items: center; gap: 8px; padding: 0 16px; background: var(--page); position: sticky; top: 0; z-index: 5; border-bottom: 1px solid #e5e7ee; }
+    .icon-button { width: 38px; height: 38px; border: 0; background: transparent; color: #50545c; border-radius: 50%; display: inline-grid; place-items: center; flex: 0 0 auto; }
+    .icon-button:hover { background: #e4e8f2; }
+    .icon-button svg { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .month-button { border: 0; background: transparent; padding: 8px 7px; font-size: 18px; font-weight: 600; color: #30333a; border-radius: 8px; white-space: nowrap; }
+    .month-button:hover { background: #e8eaf3; }
+    .topbar-spacer { flex: 1; }
+    .day-number { border: 1px solid #7a7e87; border-radius: 5px; width: 24px; height: 24px; font-size: 12px; font-weight: 700; display: grid; place-items: center; background: transparent; }
+    .avatar { background: #b9d0fa; color: #2e68bc; position: relative; }
+    .avatar::after { content: "!"; position: absolute; right: -1px; bottom: -1px; font-size: 10px; line-height: 14px; width: 14px; height: 14px; border-radius: 50%; color: #493800; background: #ffca28; border: 1px solid var(--page); font-weight: 800; }
+    .search-strip { padding: 8px 16px 12px; display: none; background: var(--page); }
+    .search-strip.open { display: block; }
+    .search-strip input { width: 100%; border: 1px solid var(--line); border-radius: 22px; padding: 10px 15px; background: white; }
+    .content { padding: 0 18px 90px; }
+    .day-heading { display: flex; align-items: center; gap: 12px; padding: 12px 4px 14px; }
+    .date-day { color: #656b75; width: 36px; text-align: center; line-height: 1.15; font-size: 13px; }
+    .date-day strong { display: block; font-size: 18px; color: #292c32; margin-top: 3px; }
+    .heading-title { font-size: 14px; color: #7b808b; }
+    .heading-date { font-size: 19px; font-weight: 650; margin-top: 1px; }
+    .day-nav { margin-left: auto; display: flex; gap: 3px; }
+    .timeline { display: grid; grid-template-columns: 54px minmax(0, 1fr); grid-auto-rows: minmax(54px, auto); gap: 3px 0; }
+    .slot-label { font-size: 12px; color: #666d77; display: flex; justify-content: center; align-items: flex-start; padding-top: 5px; border-right: 1px solid #dfe2eb; margin-right: 8px; position: relative; }
+    .slot-label small { position: absolute; top: 26px; font-size: 10px; color: #9297a1; }
+    .slot-label.break-label { align-items: center; padding-top: 0; color: #747985; writing-mode: horizontal-tb; }
+    .slot-label.break-label span { background: var(--page); padding: 4px 0; }
+    .slot-label.after-label { align-items: end; padding-bottom: 4px; }
+    .slot-cell { min-width: 0; align-self: stretch; border: 1px solid #d0d3dc; border-radius: 5px; background: rgba(255,255,255,.42); margin-bottom: 1px; }
+    .slot-cell.blank { border-color: transparent; background: transparent; }
+    .class-card { grid-column: 2; min-width: 0; min-height: 53px; margin-bottom: 1px; border: 1px solid #aeb3bd; border-radius: 5px; padding: 4px 9px 5px; text-align: left; color: #111827; display: flex; flex-direction: column; gap: 1px; overflow: hidden; transition: box-shadow .12s, transform .12s; }
+    .class-card:hover { box-shadow: 0 2px 7px #263b5b24; transform: translateY(-1px); }
+    .class-card .subject { font-weight: 750; font-size: 16px; line-height: 1.17; overflow-wrap: anywhere; }
+    .class-card .detail-line { font-size: 12px; line-height: 1.22; overflow-wrap: anywhere; }
+    .class-card .detail-line:empty { display: none; }
+    .class-card .card-footer { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 11px; margin-top: 3px; color: #414854; }
+    .class-card .warning-tag { color: #8b300b; font-weight: 750; }
+    .class-card.has-alert { box-shadow: inset 4px 0 #eb8c26; }
+    .class-card.color-pink { background: #ffe3e5; }
+    .class-card.color-blue { background: #dceef9; }
+    .class-card.color-purple { background: #ebe4fa; }
+    .class-card.color-yellow { background: #fff0df; }
+    .class-card.color-green { background: #e5f5df; }
+    .class-card.color-gray { background: #f3f3f3; }
+    .class-card.color-mint { background: #dff7ef; }
+    .class-card.color-cyan { background: #dff6f7; }
+    .break-cell { color: #777d86; font-size: 12px; display: flex; align-items: center; padding-left: 8px; border-bottom: 1px dashed #d7dae3; }
+    .fab { position: fixed; z-index: 4; bottom: max(18px, env(safe-area-inset-bottom)); left: calc(50% + min(520px, 50vw) - 78px); width: 54px; height: 54px; border: 1px solid #aeb9c7; border-radius: 12px; background: #d7e7f7; box-shadow: 0 2px 7px #20212426; color: #18202b; font-size: 30px; font-weight: 300; display: grid; place-items: center; }
+    .fab:hover { background: #c7dcf4; }
+    .overlay { position: fixed; inset: 0; background: #1419226b; z-index: 20; display: none; align-items: center; justify-content: center; padding: 18px; }
+    .overlay.open { display: flex; }
+    .drawer-overlay { justify-content: flex-start; padding: 0; }
+    .drawer { background: #f5f4fb; width: min(320px, 84vw); height: 100%; padding: 14px 9px 20px; transform: translateX(-103%); transition: transform .2s ease; box-shadow: var(--shadow); overflow-y: auto; }
+    .drawer-overlay.open .drawer { transform: translateX(0); }
+    .logo-area { height: 90px; margin: 0 4px 10px; background: #00e7ed; border: 1px solid #616a70; display: flex; align-items: center; justify-content: center; overflow: hidden; color: #111; font-size: 22px; }
+    .logo-area img { display: block; width: 100%; height: 100%; object-fit: contain; }
+    .menu-item { width: 100%; text-align: left; border: 0; background: transparent; display: flex; align-items: center; gap: 14px; padding: 10px 13px; min-height: 40px; color: #4e535d; border-radius: 25px; font-size: 13px; }
+    .menu-item svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+    .menu-item.active { background: #dce5fa; color: #26313f; }
+    .menu-divider { height: 1px; background: #d6d8df; margin: 10px 0 4px; }
+    .modal { width: min(720px, 100%); max-height: min(88vh, 920px); overflow: auto; background: #fff; border-radius: 16px; box-shadow: var(--shadow); }
+    .modal.compact { width: min(500px, 100%); }
+    .modal-header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; background: #fff; border-bottom: 1px solid #eaecf1; }
+    .modal-header h2 { font-size: 18px; margin: 0; }
+    .modal-body { padding: 18px; }
+    .modal-footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 9px; padding: 14px 18px 18px; border-top: 1px solid #eaecf1; }
+    .btn { border: 1px solid #c8ced8; border-radius: 9px; background: #fff; padding: 9px 14px; color: #273244; }
+    .btn:hover { background: #f3f6fb; }
+    .btn.primary { background: #356fd1; color: white; border-color: #356fd1; }
+    .btn.danger { color: #a22e2e; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+    .field { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { font-size: 12px; color: #5c6470; font-weight: 650; }
+    .field input, .field select, .field textarea { border: 1px solid #ccd1da; border-radius: 8px; padding: 9px 10px; min-width: 0; width: 100%; background: white; color: #202124; }
+    .field textarea { min-height: 68px; resize: vertical; }
+    .field-help, .muted { font-size: 12px; color: #727986; line-height: 1.5; }
+    .check-row { display: flex; align-items: center; gap: 9px; font-size: 13px; }
+    .color-options { display: flex; gap: 8px; flex-wrap: wrap; }
+    .color-dot { width: 30px; height: 30px; border: 2px solid #c0c5ce; border-radius: 50%; position: relative; }
+    .color-dot[aria-pressed="true"] { outline: 2px solid #3473d2; outline-offset: 2px; border-color: white; }
+    .color-dot.color-pink { background: #ffe3e5; }.color-dot.color-blue { background: #dceef9; }.color-dot.color-purple { background: #ebe4fa; }.color-dot.color-yellow { background: #fff0df; }.color-dot.color-green { background: #e5f5df; }.color-dot.color-gray { background: #f3f3f3; }.color-dot.color-mint { background: #dff7ef; }.color-dot.color-cyan { background: #dff6f7; }
+    .toast { position: fixed; z-index: 40; bottom: 22px; left: 50%; transform: translate(-50%, 14px); background: #242a35; color: white; padding: 11px 16px; border-radius: 10px; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: .2s; max-width: calc(100vw - 24px); font-size: 13px; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .notice-list { display: flex; flex-direction: column; gap: 8px; }
+    .notice-item { background: #fff8e8; border: 1px solid #f0d6a3; border-radius: 9px; padding: 10px 12px; font-size: 13px; }
+    .notice-item strong { display: block; margin-bottom: 4px; }
+    .empty-state { border: 1px dashed #cbd1dc; border-radius: 12px; padding: 30px 18px; color: #747b86; text-align: center; margin: 12px 0; }
+    .overview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding-bottom: 18px; }
+    .overview-day { background: #fff; border: 1px solid #d8dce6; border-radius: 11px; padding: 10px; min-width: 0; }
+    .overview-day h3 { font-size: 14px; margin: 0 0 8px; display: flex; justify-content: space-between; gap: 6px; align-items: center; }
+    .mini-class { border-radius: 6px; padding: 6px; margin: 5px 0; font-size: 12px; border: 1px solid #c4c8d2; overflow-wrap: anywhere; }
+    .month-grid { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 4px; }
+    .month-cell { min-height: 74px; background: white; border: 1px solid #dfe3eb; border-radius: 7px; padding: 5px; text-align: left; color: #303642; }
+    .month-cell.outside { opacity: .42; }.month-cell.selected { outline: 2px solid #3e78d4; background: #eef4ff; }
+    .month-cell .date-n { font-size: 12px; font-weight: 700; }.month-cell .count { font-size: 10px; color: #6b7480; display: block; margin-top: 8px; }
+    .import-preview { width: 100%; max-height: 240px; object-fit: contain; background: #eef0f5; border-radius: 8px; border: 1px solid #d8dce5; }
+    .progress { height: 6px; background: #e8ebf2; border-radius: 99px; overflow: hidden; margin: 8px 0; }.progress > div { height: 100%; width: 0; background: #3976d8; transition: width .15s; }
+    .editor-table-wrap { overflow: auto; border: 1px solid #dce0e8; border-radius: 8px; }
+    .editor-table { border-collapse: collapse; width: 100%; min-width: 570px; font-size: 12px; }
+    .editor-table th, .editor-table td { border-bottom: 1px solid #e6e9ef; padding: 7px; text-align: left; }
+    .editor-table th { background: #f4f6fa; position: sticky; top: 0; }
+    .editor-table input, .editor-table select { width: 100%; min-width: 75px; border: 1px solid #d0d5df; border-radius: 6px; padding: 7px; }
+    .editor-table .remove-row { border: 0; background: transparent; color: #a33; font-size: 18px; }
+    .editor-table { min-width: 1030px; }
+    .editor-table td { vertical-align: top; }
+    .editor-table input, .editor-table select { min-width: 92px; }
+    .editor-table td:nth-child(4) input { min-width: 150px; }
+    .editor-table td:nth-child(5) input, .editor-table td:nth-child(6) input { min-width: 135px; }
+    .slot-stack { display: grid; gap: 4px; min-width: 104px; }
+    .slot-stack .check-row { white-space: nowrap; font-size: 11px; }
+    .slot-stack input[type=checkbox] { width: auto; min-width: 0; }
+    .import-details { display: grid; gap: 5px; min-width: 230px; }
+    .import-details label { display: grid; grid-template-columns: 58px minmax(130px, 1fr); align-items: center; gap: 5px; color: #5c6470; font-size: 11px; }
+    .import-details input { min-width: 130px !important; }
+    .settings-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tiny-status { font-size: 11px; color: #737987; }
+    @media (min-width: 800px) {
+      .content { padding-left: clamp(22px, 5vw, 58px); padding-right: clamp(22px, 5vw, 58px); }
+      .timeline { grid-template-columns: 70px minmax(0,1fr); }
+      .class-card .subject { font-size: 17px; }
+      .class-card .detail-line { font-size: 13px; }
+    }
+    @media (max-width: 600px) {
+      .topbar { height: 60px; padding: 0 8px; gap: 3px; }
+      .month-button { font-size: 16px; padding: 7px 4px; }
+      .topbar .icon-button { width: 34px; height: 36px; }
+      .content { padding: 0 9px 88px; }
+      .timeline { grid-template-columns: 45px minmax(0,1fr); grid-auto-rows: minmax(53px, auto); }
+      .slot-label { margin-right: 5px; font-size: 11px; }
+      .class-card { padding: 4px 6px; }
+      .class-card .subject { font-size: 15px; }
+      .class-card .detail-line { font-size: 11px; }
+      .fab { left: auto; right: 18px; }
+      .overlay { padding: 8px; }
+      .modal { max-height: 94vh; border-radius: 12px; }
+      .modal-body { padding: 13px; }
+      .form-grid { grid-template-columns: minmax(0,1fr); }
+      .field.full { grid-column: auto; }
+      .overview-grid { grid-template-columns: 1fr; }
+      .overview-day { padding: 9px; }
+      .month-cell { min-height: 57px; padding: 3px; }
+      .month-cell .count { font-size: 9px; margin-top: 4px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell" id="app">
+  <header class="topbar" aria-label="メインナビゲーション">
+    <button class="icon-button" id="menuBtn" aria-label="メニューを開く" title="メニュー">
+      <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <button class="month-button" id="monthBtn" title="日付を選択">10月 <span aria-hidden="true">⌄</span></button>
+    <div class="topbar-spacer"></div>
+    <button class="icon-button" id="searchBtn" aria-label="検索" title="検索"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.5"/><path d="m16 16 4.3 4.3"/></svg></button>
+    <button class="icon-button" id="todayBtn" aria-label="今日" title="今日"><span class="day-number" id="todayNumber">29</span></button>
+    <button class="icon-button" id="alertsBtn" aria-label="忘れ物・備考の確認" title="忘れ物・備考"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/><circle cx="12" cy="12" r="9"/></svg></button>
+    <button class="icon-button avatar" id="settingsBtn" aria-label="設定" title="設定"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.4-4 2.5-6 6.5-6s6.1 2 6.5 6"/></svg></button>
+  </header>
+  <div class="search-strip" id="searchStrip"><input id="searchInput" type="search" placeholder="教科・持ち物・宿題を検索…" aria-label="時間割を検索"></div>
+  <main class="content">
+    <div class="day-heading">
+      <div class="date-day"><span id="weekdayShort">木</span><strong id="dateNumber">29</strong></div>
+      <div><div class="heading-title" id="headingTitle">時間割</div><div class="heading-date" id="headingDate">2026年10月29日（木）</div></div>
+      <div class="day-nav">
+        <button class="icon-button" id="prevDay" aria-label="前の日">‹</button>
+        <button class="icon-button" id="nextDay" aria-label="次の日">›</button>
+      </div>
+    </div>
+    <section id="viewRoot" aria-live="polite"></section>
+  </main>
+  <button class="fab" id="addBtn" aria-label="授業を追加" title="授業を追加">+</button>
+</div>
+
+<div class="overlay drawer-overlay" id="drawerOverlay" aria-hidden="true">
+  <nav class="drawer" aria-label="メニュー">
+    <div class="logo-area" id="logoArea"><span>ロゴ画像</span><img id="logoImage" alt="ロゴ画像" hidden></div>
+    <button class="menu-item" data-view="schedule"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="5" rx="1"/><rect x="4" y="14" width="16" height="5" rx="1"/></svg>スケジュール</button>
+    <button class="menu-item active" data-view="day"><svg viewBox="0 0 24 24"><path d="M4 5h16v4H4zM4 11h16v8H4z" fill="currentColor" stroke="none"/></svg>日</button>
+    <button class="menu-item" data-view="3days"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="5" height="14"/><rect x="9.5" y="5" width="5" height="14"/><rect x="16" y="5" width="5" height="14"/></svg>3日間</button>
+    <button class="menu-item" data-view="week"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14"/><path d="M3 10h18M7.5 5v14M12 5v14M16.5 5v14"/></svg>週</button>
+    <button class="menu-item" data-view="month"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="1"/><path d="M3 9h18M9 9v12M15 9v12"/></svg>月</button>
+    <div class="menu-divider"></div>
+    <button class="menu-item" id="loadTimetableBtn"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="12" cy="12" r="4"/><path d="M8 4 9.5 2h5L16 4"/></svg>時間割読み込み</button>
+    <button class="menu-item" id="drawerSettingsBtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="m19 13.5 1.4 1.1-1.5 2.6-1.7-.6a7.6 7.6 0 0 1-1.7 1l-.3 1.8h-3l-.4-1.8a7.6 7.6 0 0 1-1.7-1l-1.7.6-1.5-2.6 1.4-1.1a7 7 0 0 1 0-2l-1.4-1.1 1.5-2.6 1.7.6a7.6 7.6 0 0 1 1.7-1l.4-1.8h3l.3 1.8a7.6 7.6 0 0 1 1.7 1l1.7-.6 1.5 2.6-1.4 1.1a7 7 0 0 1 0 2Z" transform="translate(-1 -1)"/></svg>設定</button>
+    <div class="menu-divider"></div>
+    <div class="tiny-status" style="padding:8px 14px">データはこのブラウザに自動保存されます。</div>
+  </nav>
+</div>
+
+<div class="overlay" id="modalOverlay" aria-hidden="true"><section class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></section></div>
+<input type="file" id="imageInput" accept="image/*" capture="environment" hidden>
+<input type="file" id="jsonInput" accept="application/json,.json" hidden>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+'use strict';
+// ロゴを変更する場合は、このURLを利用する画像に差し替えてください。
+const LOGO_IMAGE_URL = 'https://i.imgur.com/xxx.png';
+const STORAGE_KEY = 'timetable-note-v1';
+// GitHub Pagesから呼び出すCloudflare WorkerのURLに置き換えてください。末尾の /api/timetable まで必要です。
+const GEMINI_PROXY_URL = 'https://YOUR-WORKER.YOUR-SUBDOMAIN.workers.dev/api/timetable';
+const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
+const GEMINI_MODELS = [
+  {value:'gemini-3.8-flash', label:'Gemini 3.8 Flash（精度重視・無料枠あり）'},
+  {value:'gemini-3.5-flash-lite', label:'Gemini 3.5 Flash-Lite（軽量・無料枠あり）'}
+];
+// APIキーはCloudflare WorkerのSecret `gem_api` に置き、ブラウザには持たせません。
+let geminiModel = DEFAULT_GEMINI_MODEL;
+let ocrRunToken = 0;
+const DAYS = ['日','月','火','水','木','金','土'];
+const SLOTS = ['朝','1','2','3','4','昼休み','5','6','7','放課後'];
+const PERIOD_SLOTS = ['朝','1','2','3','4','昼休み','5','6','7','放課後'];
+const COLORS = ['pink','blue','purple','yellow','green','gray','mint','cyan'];
+const COLOR_NAMES = {pink:'ピンク',blue:'青',purple:'紫',yellow:'黄',green:'緑',gray:'グレー',mint:'ミント',cyan:'水色'};
+const SLOT_INDEX = Object.fromEntries(SLOTS.map((s,i)=>[s,i]));
+const $ = (selector, root=document) => root.querySelector(selector);
+const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
+const makeId = () => (crypto?.randomUUID ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`);
+const dateKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const clone = value => JSON.parse(JSON.stringify(value));
+
+function seedEvents() {
+  const lessons = [
+    {slot:'朝', subject:'朝練', color:'gray', items:'', quiz:'', location:'', homework:'', notes:'', forgotten:''},
+    {slot:'1', subject:'国語', color:'pink', items:'教科書、ノート、古文単語帳', quiz:'', location:'教室', homework:'2023年度模試過去問', notes:'', forgotten:''},
+    {slot:'2', subject:'数学 I', color:'blue', items:'教科書、ノート、古文単語帳', quiz:'', location:'教室', homework:'2023年度模試過去問', notes:'', forgotten:''},
+    {slot:'3', subject:'英コミュ I', color:'purple', items:'教科書、ノート、古文単語帳', quiz:'', location:'教室', homework:'2023年度模試過去問', notes:'', forgotten:''},
+    {slot:'4', subject:'地理総合', color:'yellow', items:'教科書、ノート、古文単語帳', quiz:'', location:'教室', homework:'2023年度模試過去問', notes:'', forgotten:''},
+    {slot:'5', subject:'生物基礎', color:'green', items:'教科書、ノート、古文単語帳', quiz:'', location:'理科室', homework:'2023年度模試過去問', notes:'', forgotten:''},
+    {slot:'6', subject:'化学基礎', color:'green', items:'教科書、ノート、古文単語帳', quiz:'', location:'理科室', homework:'2023年度模試過去問', notes:'', forgotten:''},
+    {slot:'7', subject:'体育', color:'gray', items:'体育着、タオル', quiz:'', location:'体育館', homework:'', notes:'', forgotten:''}
+  ];
+  // サンプルは平日の見た目確認用。実際の時間割に編集・置き換えできます。
+  return lessons.flatMap(lesson => [1,2,3,4,5].map(weekday => ({id:makeId(), weekday, dateKey:null, slot:lesson.slot, endSlot:lesson.slot, subject:lesson.subject, color:lesson.color, items:lesson.items, quiz:lesson.quiz, location:lesson.location, homework:lesson.homework, notes:lesson.notes, forgotten:lesson.forgotten, allDay:false, colSpan:1, rowSpan:1})));
+}
+let state = {events: seedEvents(), view:'day', selectedDate: dateKey(new Date()), settings:{logoUrl:LOGO_IMAGE_URL, compact:false}, checklists:[]};
+let editingId = null;
+let importRows = [];
+let pendingShare = null;
+let toastTimer = null;
+
+function persist() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch (err) { console.warn('Could not save local data', err); toast('保存容量の上限に達しました。画像などを減らしてください。'); }
+}
+function loadSavedState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed && Array.isArray(parsed.events)) state = {...state, ...parsed, settings:{...state.settings, ...(parsed.settings||{})}};
+  } catch (err) { console.warn('Saved timetable could not be loaded', err); }
+}
+function toast(message) {
+  const el = $('#toast'); el.textContent = message; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>el.classList.remove('show'), 2800);
+}
+function selectedDateObj() { const [y,m,d] = state.selectedDate.split('-').map(Number); return new Date(y,m-1,d); }
+function sameDayEvents(date) {
+  return state.events.filter(e => e.dateKey ? e.dateKey === dateKey(date) : Number(e.weekday) === date.getDay()).sort((a,b)=>(SLOT_INDEX[a.slot]??0)-(SLOT_INDEX[b.slot]??0));
+}
+function eventSpan(e) { return e.allDay ? SLOTS.length : Math.max(1, (SLOT_INDEX[e.endSlot]??SLOT_INDEX[e.slot]??0) - (SLOT_INDEX[e.slot]??0) + 1); }
+function formatFullDate(d) { return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${DAYS[d.getDay()]}）`; }
+function niceDate(d) { return `${d.getMonth()+1}月${d.getDate()}日（${DAYS[d.getDay()]}）`; }
+function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+function hasAlert(e) { return Boolean(String(e.forgotten||'').trim() || String(e.notes||'').trim()); }
+function eventText(e) { return [e.subject,e.items,e.quiz,e.location,e.homework,e.notes,e.forgotten].filter(Boolean).join(' '); }
+function eventCardHTML(e, compact=false, gridRowStart=null) {
+  const alert = hasAlert(e);
+  const gridPlacement = (!compact && gridRowStart !== null) ? `grid-row:${gridRowStart} / span ${eventSpan(e)};grid-column:2` : 'grid-row:span 1';
+  const lines = [];
+  if (e.items) lines.push(`<div class="detail-line">持ち物：${escapeHtml(e.items)}</div>`);
+  if (e.quiz) lines.push(`<div class="detail-line">小テスト：${escapeHtml(e.quiz)}</div>`);
+  if (e.location) lines.push(`<div class="detail-line">場所：${escapeHtml(e.location)}</div>`);
+  if (e.homework) lines.push(`<div class="detail-line">宿題：${escapeHtml(e.homework)}</div>`);
+  if (e.notes) lines.push(`<div class="detail-line">備考：${escapeHtml(e.notes)}</div>`);
+  if (e.forgotten) lines.push(`<div class="detail-line warning-tag">忘れ物：${escapeHtml(e.forgotten)}</div>`);
+  return `<button class="class-card color-${COLORS.includes(e.color)?e.color:'gray'} ${alert?'has-alert':''}" data-event-id="${escapeHtml(e.id)}" style="${gridPlacement}" title="${escapeHtml(e.subject)}を編集">
+    <span class="subject">${escapeHtml(e.subject||'（教科名未入力）')}</span>
+    ${compact ? '' : lines.join('')}
+    ${compact ? `<span class="detail-line">${escapeHtml(e.slot)}限${e.location?'・'+escapeHtml(e.location):''}</span>` : ''}
+    ${alert && !compact ? '<span class="card-footer"><span class="warning-tag">⚑ 忘れ物・備考あり</span></span>' : ''}
+  </button>`;
+}
+function renderDay() {
+  const d = selectedDateObj(); const events = sameDayEvents(d); const bySlot = new Map();
+  events.forEach(e => { const key=e.allDay?'朝':e.slot; if(!bySlot.has(key)) bySlot.set(key,[]); bySlot.get(key).push(e); });
+  const coveredRows = new Set(); let html = '<div class="timeline">';
+  SLOTS.forEach((slot,index)=> {
+    const displayLabel = slot==='朝'?'朝':slot==='放課後'?'放課後':slot==='昼休み'?'昼休み':slot;
+    html += `<div class="slot-label ${slot==='昼休み'?'break-label':''} ${slot==='放課後'?'after-label':''}" style="grid-row:${index+1};grid-column:1">${slot==='昼休み'?'<span>昼休み</span>':escapeHtml(displayLabel)}</div>`;
+    // 結合セルの途中行には別カードを置かず、ひとつのカードで複数コマを占有します。
+    if (coveredRows.has(index)) return;
+    const current = bySlot.get(slot) || [];
+    const active = current[0];
+    if (slot==='昼休み' && !active) { html += `<div class="break-cell" style="grid-row:${index+1};grid-column:2">昼休み</div>`; return; }
+    if (active) {
+      html += eventCardHTML(active, false, index+1);
+      const span = eventSpan(active);
+      for(let i=index+1; i<Math.min(SLOTS.length,index+span); i++) coveredRows.add(i);
+      if (current.length>1) current.slice(1).forEach(e=> { html += `<div style="grid-row:${index+1};grid-column:2">${eventCardHTML(e,true)}</div>`; });
+    } else {
+      const emptyClass = (slot==='昼休み'||slot==='朝'||slot==='放課後')?'blank':'';
+      html += `<div class="slot-cell ${emptyClass}" style="grid-row:${index+1};grid-column:2"></div>`;
+    }
+  });
+  html += '</div>';
+  if(!events.length) html = `<div class="empty-state">この日の時間割はまだありません。<br>右下の「＋」から授業を追加するか、メニューから時間割画像を読み込んでください。</div>`;
+  $('#viewRoot').innerHTML = html;
+}
+function renderOverview(days, title) {
+  const html = `<div class="overview-grid">${days.map(date=>{
+    const ev=sameDayEvents(date);
+    return `<section class="overview-day"><h3><span>${escapeHtml(niceDate(date))}</span><button class="btn" data-pick-date="${dateKey(date)}">開く</button></h3>${ev.length?ev.map(e=>eventCardHTML(e,true)).join(''):'<div class="muted">予定なし</div>'}</section>`;
+  }).join('')}</div>`;
+  $('#viewRoot').innerHTML = html;
+  $('#headingTitle').textContent = title;
+}
+function renderMonth() {
+  const date=selectedDateObj(), first=new Date(date.getFullYear(),date.getMonth(),1), start=new Date(first); start.setDate(first.getDate()-first.getDay());
+  const cells=[];
+  for(let i=0;i<42;i++){const x=new Date(start);x.setDate(start.getDate()+i); const count=sameDayEvents(x).length;
+    cells.push(`<button class="month-cell ${x.getMonth()!==date.getMonth()?'outside':''} ${dateKey(x)===state.selectedDate?'selected':''}" data-pick-date="${dateKey(x)}"><span class="date-n">${x.getDate()}</span><span class="count">${count?`${count}件`:''}</span></button>`);
+  }
+  $('#viewRoot').innerHTML=`<div class="month-grid" style="margin-bottom:5px">${DAYS.map(x=>`<div style="text-align:center;font-size:11px;color:#717985;padding:4px">${x}</div>`).join('')}</div><div class="month-grid">${cells.join('')}</div>`;
+  $('#headingTitle').textContent='月表示';
+}
+function render() {
+  const d=selectedDateObj();
+  $('#monthBtn').innerHTML=`${d.getMonth()+1}月 <span aria-hidden="true">⌄</span>`;
+  $('#todayNumber').textContent=new Date().getDate(); $('#weekdayShort').textContent=DAYS[d.getDay()]; $('#dateNumber').textContent=d.getDate(); $('#headingDate').textContent=formatFullDate(d);
+  $$('.menu-item[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===state.view));
+  if(state.view==='day') { $('#headingTitle').textContent='時間割'; renderDay(); }
+  else if(state.view==='month') renderMonth();
+  else {
+    let dates=[]; let title='';
+    if(state.view==='3days'){ dates=[-1,0,1].map(n=>{const x=new Date(d);x.setDate(x.getDate()+n);return x}); title='3日間'; }
+    else if(state.view==='week' || state.view==='schedule') { const x=new Date(d);x.setDate(x.getDate()-((x.getDay()+6)%7));dates=Array.from({length:5},(_,i)=>{const y=new Date(x);y.setDate(x.getDate()+i);return y});title=state.view==='schedule'?'スケジュール':'週表示'; }
+    renderOverview(dates,title);
+  }
+  persist();
+}
+function openDrawer() { $('#drawerOverlay').classList.add('open'); $('#drawerOverlay').setAttribute('aria-hidden','false'); }
+function closeDrawer() { $('#drawerOverlay').classList.remove('open'); $('#drawerOverlay').setAttribute('aria-hidden','true'); }
+function openModal(title, body, footer='', compact=false) {
+  const modal=$('#modal'); modal.className='modal'+(compact?' compact':'');
+  modal.innerHTML=`<header class="modal-header"><h2 id="modalTitle">${escapeHtml(title)}</h2><button class="icon-button" data-close-modal aria-label="閉じる">✕</button></header><div class="modal-body">${body}</div>${footer?`<footer class="modal-footer">${footer}</footer>`:''}`;
+  $('#modalOverlay').classList.add('open'); $('#modalOverlay').setAttribute('aria-hidden','false');
+  $('#modalOverlay').querySelector('[data-close-modal]')?.focus();
+}
+function closeModal() { ocrRunToken++; $('#modalOverlay').classList.remove('open'); $('#modalOverlay').setAttribute('aria-hidden','true'); $('#modal').innerHTML=''; }
+function field(label,name,value='',type='text',extra='') { return `<div class="field"><label for="f-${name}">${label}</label><input id="f-${name}" name="${name}" type="${type}" value="${escapeHtml(value)}" ${extra}></div>`; }
+function selectField(label,name,options,value) { return `<div class="field"><label for="f-${name}">${label}</label><select id="f-${name}" name="${name}">${options.map(x=>`<option value="${escapeHtml(x.value)}" ${String(x.value)===String(value)?'selected':''}>${escapeHtml(x.label)}</option>`).join('')}</select></div>`; }
+function openEventEditor(id=null, slotDefault=null) {
+  editingId=id; const existing=id?state.events.find(e=>e.id===id):null; const e=existing?clone(existing):{id:makeId(),weekday:selectedDateObj().getDay(),dateKey:null,slot:slotDefault||'1',endSlot:slotDefault||'1',subject:'',color:'blue',items:'',quiz:'',location:'',homework:'',notes:'',forgotten:'',allDay:false,colSpan:1,rowSpan:1};
+  const slotOptions=SLOTS.map(s=>({value:s,label:s==='朝'?'朝':s==='放課後'?'放課後':s==='昼休み'?'昼休み':`${s}限`}));
+  const weekdayOptions=DAYS.map((s,i)=>({value:i,label:s+'曜日'}));
+  const body=`<form id="eventForm"><div class="form-grid">
+    ${field('教科名・予定名','subject',e.subject)}
+    ${selectField('曜日','weekday',weekdayOptions,e.weekday)}
+    ${selectField('開始コマ','slot',slotOptions,e.slot)}
+    ${selectField('終了コマ（結合セル対応）','endSlot',slotOptions,e.endSlot||e.slot)}
+    <div class="field full"><label>カードの色</label><div class="color-options">${COLORS.map(c=>`<button type="button" class="color-dot color-${c}" data-color="${c}" aria-label="${COLOR_NAMES[c]}" aria-pressed="${e.color===c}"></button>`).join('')}</div><input type="hidden" name="color" id="f-color" value="${escapeHtml(e.color)}"></div>
+    ${field('持ち物','items',e.items)}${field('小テスト','quiz',e.quiz)}${field('場所','location',e.location)}
+    <div class="field full"><label for="f-homework">宿題</label><textarea id="f-homework" name="homework">${escapeHtml(e.homework)}</textarea></div>
+    <div class="field full"><label for="f-forgotten">忘れ物（入力するとハイライト）</label><textarea id="f-forgotten" name="forgotten" placeholder="例：提出プリント">${escapeHtml(e.forgotten)}</textarea></div>
+    <div class="field full"><label for="f-notes">その他・備考（入力するとハイライト）</label><textarea id="f-notes" name="notes">${escapeHtml(e.notes)}</textarea></div>
+    <div class="field full"><label class="check-row"><input type="checkbox" name="allDay" ${e.allDay?'checked':''}> 終日予定として表示（全コマにまたがる結合セル）</label><div class="field-help">開始・終了コマを変えると、複数コマにまたがる予定として保存されます。列結合の情報も colSpan として保持します。</div></div>
+    <div class="field"><label for="f-colSpan">横方向の結合数（週表示用）</label><input id="f-colSpan" name="colSpan" type="number" min="1" max="7" value="${Number(e.colSpan)||1}"></div>
+  </div></form>`;
+  const footer=`${existing?'<button type="button" class="btn danger" id="deleteEventBtn">削除</button>':''}<button type="button" class="btn" data-close-modal>キャンセル</button><button type="button" class="btn primary" id="saveEventBtn">保存する</button>`;
+  openModal(existing?'授業を編集':'授業を追加',body,footer);
+  $$('.color-dot',$('#modal')).forEach(btn=>btn.addEventListener('click',()=>{$('#f-color').value=btn.dataset.color; $$('.color-dot',$('#modal')).forEach(b=>b.setAttribute('aria-pressed',String(b===btn)));}));
+  $('#saveEventBtn').addEventListener('click',()=>{
+    const form=$('#eventForm'); if(!form.reportValidity()) return;
+    const fd=new FormData(form); const updated={...e};
+    for(const k of ['subject','weekday','slot','endSlot','color','items','quiz','location','homework','notes','forgotten','colSpan']) updated[k]=fd.get(k)??'';
+    updated.weekday=Number(updated.weekday); updated.colSpan=Math.max(1,Math.min(7,Number(updated.colSpan)||1)); updated.allDay=fd.has('allDay'); updated.rowSpan=eventSpan(updated);
+    if(!String(updated.subject).trim()) { toast('教科名を入力してください'); return; }
+    if(SLOT_INDEX[updated.endSlot] < SLOT_INDEX[updated.slot] && !updated.allDay) { toast('終了コマは開始コマ以降にしてください'); return; }
+    if(existing) state.events=state.events.map(x=>x.id===id?updated:x); else state.events.push(updated);
+    closeModal(); render(); toast('時間割を保存しました');
+  });
+  $('#deleteEventBtn')?.addEventListener('click',()=>{if(confirm('この授業を削除しますか？')){state.events=state.events.filter(x=>x.id!==id);closeModal();render();toast('授業を削除しました');}});
+}
+function openDatePicker() {
+  openModal('日付を選択',`<div class="field"><label for="datePick">表示する日付</label><input type="date" id="datePick" value="${state.selectedDate}"></div>`,`<button class="btn" data-close-modal>キャンセル</button><button class="btn primary" id="applyDate">表示</button>`,true);
+  $('#applyDate').addEventListener('click',()=>{state.selectedDate=$('#datePick').value||dateKey(new Date());closeModal();render();});
+}
+function openAlerts() {
+  const events=state.events.filter(hasAlert);
+  const body=events.length?`<div class="notice-list">${events.map(e=>`<div class="notice-item"><strong>${escapeHtml(e.subject)}（${escapeHtml(DAYS[e.weekday]||'')}曜日・${escapeHtml(e.slot)}限）</strong>${e.forgotten?`<div>忘れ物：${escapeHtml(e.forgotten)}</div>`:''}${e.notes?`<div>備考：${escapeHtml(e.notes)}</div>`:''}<div style="margin-top:8px"><button class="btn" data-edit-alert="${escapeHtml(e.id)}">編集する</button></div></div>`).join('')}</div>`:'<div class="empty-state">忘れ物・備考の登録はありません。</div>';
+  openModal('忘れ物・備考の確認',body,'<button class="btn" data-close-modal>閉じる</button>',true);
+  $$('[data-edit-alert]',$('#modal')).forEach(b=>b.addEventListener('click',()=>openEventEditor(b.dataset.editAlert)));
+}
+function openSettings() {
+  const body=`<div class="form-grid">
+    <div class="field full"><label for="logoUrlInput">ロゴ画像URL（Imgurなど）</label><input id="logoUrlInput" type="url" value="${escapeHtml(state.settings.logoUrl||LOGO_IMAGE_URL)}" placeholder="https://i.imgur.com/xxxxx.png"><div class="field-help">画像の縦横比を保って表示します。URL未変更の例示値では画像が表示されません。</div></div>
+    <div class="field full"><label>Gemini API接続（サーバー経由）</label><div class="field-help">APIキーはブラウザに設定しません。Cloudflare WorkerのSecret名 <code>gem_api</code> に保存し、下のHTML定数 GEMINI_PROXY_URL にWorker URLを設定してください。<br><strong>現在の接続：</strong>${GEMINI_PROXY_URL.includes('YOUR-WORKER')?'Worker URL未設定':'Worker URL設定済み'}</div></div>
+    <div class="field full"><label for="geminiModelInput">画像解析モデル</label><select id="geminiModelInput">${GEMINI_MODELS.map(m=>`<option value="${m.value}" ${geminiModel===m.value?'selected':''}>${escapeHtml(m.label)}</option>`).join('')}</select><div class="field-help">通常は精度重視の Gemini 3.8 Flash を推奨します。無料枠の上限・利用可能なモデルはGoogle AI Studioの表示に従います。</div></div>
+
+    <div class="field full"><label>データ管理</label><div class="settings-actions"><button class="btn" id="exportDataBtn">JSONを書き出す</button><button class="btn" id="importJsonBtn">JSONを読み込む</button><button class="btn" id="shareDataBtn">共有URLを作成</button></div></div>
+    <div class="field full"><label>保存・オフラインについて</label><div class="muted">時間割データはこのブラウザのLocalStorageに保存されます。Geminiで画像を解析すると、選択した画像がGoogleのAPIに送信されます。無料枠では入力データがGoogleのサービス改善に使われる場合があるため、アップロード前に氏名・学校名などの個人情報を隠してください。APIキーはCloudflare WorkerのSecret gem_api に保管し、ブラウザには返しません。OCRにはインターネット接続が必要です。</div></div>
+  </div>`;
+  openModal('設定',body,'<button class="btn" data-close-modal>閉じる</button>');
+  $('#exportDataBtn').addEventListener('click',exportJson);
+  $('#importJsonBtn').addEventListener('click',()=>{$('#jsonInput').click();});
+  $('#shareDataBtn').addEventListener('click',createShareUrl);
+  $('#logoUrlInput').addEventListener('change',()=>{state.settings.logoUrl=$('#logoUrlInput').value.trim()||LOGO_IMAGE_URL;persist();applyLogo();});
+  $('#geminiModelInput').addEventListener('change',()=>{
+    geminiModel=GEMINI_MODELS.some(m=>m.value===$('#geminiModelInput').value)?$('#geminiModelInput').value:DEFAULT_GEMINI_MODEL;
+    toast('Geminiモデルを更新しました');
+  });
+}
+function applyLogo() {
+  const url=(state.settings?.logoUrl || LOGO_IMAGE_URL).trim();
+  const img=$('#logoImage'), area=$('#logoArea');
+  if(!url || url.endsWith('/xxx.png')) {img.hidden=true;img.removeAttribute('src');return;}
+  img.hidden=false; img.onload=()=>{$('#logoArea span').hidden=true;}; img.onerror=()=>{img.hidden=true;$('#logoArea span').hidden=false;}; img.src=url;
+}
+function download(filename, data, type='application/json') {
+  const blob=new Blob([data],{type}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function exportJson() { download(`timetable-${dateKey(new Date())}.json`,JSON.stringify(state,null,2)); toast('JSONを書き出しました'); }
+function encodeShare(obj) { const bytes=new TextEncoder().encode(JSON.stringify(obj)); let binary=''; bytes.forEach(b=>binary+=String.fromCharCode(b)); return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function decodeShare(str) { const base=str.replace(/-/g,'+').replace(/_/g,'/'); const padded=base+'='.repeat((4-base.length%4)%4); const bin=atob(padded); const bytes=Uint8Array.from(bin,c=>c.charCodeAt(0)); return JSON.parse(new TextDecoder().decode(bytes)); }
+async function createShareUrl() {
+  try {
+    const payload={version:1,events:state.events,settings:{logoUrl:state.settings.logoUrl}};
+    const url=new URL(location.href); url.searchParams.set('share',encodeShare(payload));
+    if(url.href.length>18000) { toast('データが多く共有URLが長くなっています。JSON共有をおすすめします。'); }
+    await navigator.clipboard.writeText(url.href); toast('共有URLをコピーしました。相手は開いた後に取り込めます。');
+  } catch(err) {
+    const url=new URL(location.href); url.searchParams.set('share',encodeShare({version:1,events:state.events,settings:{logoUrl:state.settings.logoUrl}}));
+    openModal('共有URL',`<div class="field"><label for="shareUrlText">共有URL</label><textarea id="shareUrlText" rows="5" readonly>${escapeHtml(url.href)}</textarea><div class="field-help">URLをコピーして共有してください。URLの長さにはブラウザやサービス側の上限があります。</div></div>`,`<button class="btn" data-close-modal>閉じる</button><button class="btn primary" id="copyShareFallback">コピー</button>`,true);
+    $('#copyShareFallback').addEventListener('click',async()=>{const t=$('#shareUrlText');t.select();try{await navigator.clipboard.writeText(t.value);toast('共有URLをコピーしました');}catch{document.execCommand('copy');toast('共有URLを選択しました');}});
+  }
+}
+function checkShareUrl() {
+  const url=new URL(location.href); const share=url.searchParams.get('share'); if(!share) return;
+  try { pendingShare=decodeShare(share); if(!Array.isArray(pendingShare.events)) throw new Error('invalid share');
+    openModal('共有された時間割',`<p>共有された時間割データ（${pendingShare.events.length}件）が見つかりました。取り込むと、このブラウザの時間割データに追加されます。</p><p class="muted">既存の授業は削除されず、共有データが追加されます。</p>`,`<button class="btn" id="ignoreShare">取り込まない</button><button class="btn primary" id="acceptShare">自分の環境に取り込む</button>`,true);
+    $('#ignoreShare').addEventListener('click',()=>{closeModal();url.searchParams.delete('share');history.replaceState(null,'',url);});
+    $('#acceptShare').addEventListener('click',()=>{const imported=pendingShare.events.map(e=>({...e,id:makeId()}));state.events.push(...imported);if(pendingShare.settings?.logoUrl)state.settings.logoUrl=pendingShare.settings.logoUrl;persist();closeModal();url.searchParams.delete('share');history.replaceState(null,'',url);applyLogo();render();toast(`${imported.length}件のデータを取り込みました`);});
+  } catch(err) { console.warn(err); toast('共有URLのデータを読み取れませんでした'); }
+}
+function importJsonFile(file) {
+  if(!file) return;
+  const reader=new FileReader(); reader.onload=()=>{try{const data=JSON.parse(String(reader.result));if(!Array.isArray(data.events))throw new Error('形式が違います');if(confirm('現在の時間割を置き換えてJSONデータを読み込みますか？')){state={...state,...data,settings:{...state.settings,...(data.settings||{})}};persist();applyLogo();render();closeModal();toast('JSONを読み込みました');}}catch{toast('JSONファイルの形式が正しくありません');}};reader.readAsText(file);
+}
+function openImportChooser() { closeDrawer(); $('#imageInput').click(); }
+function preprocessImage(file) {
+  return new Promise((resolve,reject)=>{
+    const image=new Image(); const objectUrl=URL.createObjectURL(file);
+    image.onload=()=>{
+      try {
+        const maxWidth=2200, scale=Math.min(1,maxWidth/image.width); const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(image.width*scale));canvas.height=Math.max(1,Math.round(image.height*scale));
+        const ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)throw new Error('Canvasが使えません');ctx.drawImage(image,0,0,canvas.width,canvas.height);
+        const id=ctx.getImageData(0,0,canvas.width,canvas.height), data=id.data;
+        // グレースケール化＋コントラスト調整。周辺画素を使った簡易シャープ処理も加えます。
+        const gray=new Float32Array(canvas.width*canvas.height);
+        for(let i=0,p=0;i<data.length;i+=4,p++){const g=.299*data[i]+.587*data[i+1]+.114*data[i+2];gray[p]=Math.max(0,Math.min(255,(g-128)*1.35+128));}
+        const w=canvas.width,h=canvas.height;
+        for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const p=y*w+x;const sharpen=gray[p]*5-gray[p-1]-gray[p+1]-gray[p-w]-gray[p+w];const v=Math.max(0,Math.min(255,sharpen));const i=p*4;data[i]=data[i+1]=data[i+2]=v;data[i+3]=255;}
+        ctx.putImageData(id,0,0);
+        canvas.toBlob(blob=>{URL.revokeObjectURL(objectUrl);if(blob)resolve({blob,preview:canvas.toDataURL('image/jpeg',.9)});else reject(new Error('画像の前処理に失敗しました'));},'image/jpeg',.92);
+      } catch(e){URL.revokeObjectURL(objectUrl);reject(e);}
+    }; image.onerror=()=>{URL.revokeObjectURL(objectUrl);reject(new Error('画像を開けませんでした'));};image.src=objectUrl;
+  });
+}
+async function loadTesseract() {
+  // OCRエンジンは読み込み操作後にだけ取得し、初期起動の負担を抑える。
+  const mod=await import('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.esm.min.js');
+  return mod;
+}
+function guessImportRows(text) {
+  const lines=text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).filter(s=>s.length<100);
+  const weekdays=[1,2,3,4,5]; const rows=[]; let period=1;
+  for(const line of lines) {
+    if(/^(月|火|水|木|金|土|日)(曜日)?([\s　,、|｜]+(月|火|水|木|金|土|日)(曜日)?)*$/.test(line.replace(/\s/g,''))) continue;
+    let cells=line.split(/\t+|\s{2,}|[|｜]/).map(s=>s.trim()).filter(Boolean);
+    if(cells.length>=2 && cells.length<=7) {
+      cells=cells.slice(0,5);
+      cells.forEach((subject,i)=>{if(subject.length<=30 && !/^[0-9０-９]+$/.test(subject)) rows.push({weekday:weekdays[i],slot:String(Math.min(7,period)),subject:subject.replace(/^[・:：\-]+/,'')});});
+      period++; if(period>7)period=1;
+    } else {
+      const cleaned=line.replace(/[•・●▪■]/g,'').trim();
+      if(cleaned.length>0 && cleaned.length<45 && !/^(時間割|持ち物|宿題|曜日|月曜日|火曜日|水曜日|木曜日|金曜日)$/.test(cleaned)) {
+        rows.push({weekday:selectedDateObj().getDay()||1,slot:String(Math.min(7,period)),subject:cleaned}); period++;if(period>7)period=1;
+      }
+    }
+  }
+  return rows.slice(0,120);
+}
+function normalizeImportRow(r) {
+  const n=Number(r.weekday);
+  const weekday=Number.isInteger(n)&&n>=0&&n<=6?n:((selectedDateObj().getDay())||1);
+  const slot=SLOTS.includes(String(r.slot))?String(r.slot):'1';
+  let endSlot=SLOTS.includes(String(r.endSlot))?String(r.endSlot):slot;
+  if((SLOT_INDEX[endSlot]??0)<(SLOT_INDEX[slot]??0)) endSlot=slot;
+  return {...r,weekday,slot,endSlot,subject:String(r.subject??''),items:String(r.items??''),quiz:String(r.quiz??''),location:String(r.location??''),homework:String(r.homework??''),notes:String(r.notes??''),forgotten:String(r.forgotten??''),allDay:Boolean(r.allDay),colSpan:Math.max(1,Math.min(7,Number(r.colSpan)||1)),confidence:(r.confidence===null||r.confidence===undefined||r.confidence==='')?null:(Number.isFinite(Number(r.confidence))?Number(r.confidence):null),color:COLORS.includes(r.color)?r.color:''};
+}
+function renderImportTable() {
+  importRows=importRows.map(normalizeImportRow);
+  const weekdays=DAYS.map((s,i)=>({value:i,label:s}));
+  const slots=SLOTS.map(s=>({value:s,label:s==='朝'?'朝':s==='昼休み'?'昼休み':s==='放課後'?'放課後':`${s}限`}));
+  const options=(list,val)=>list.map(x=>`<option value="${escapeHtml(x.value)}" ${String(val)===String(x.value)?'selected':''}>${escapeHtml(x.label)}</option>`).join('');
+  importRows.sort((a,b)=>a.weekday-b.weekday||(SLOT_INDEX[a.slot]??0)-(SLOT_INDEX[b.slot]??0));
+  $('#importRowsBody').innerHTML=importRows.map((r,i)=>`<tr>
+    <td>${i+1}</td>
+    <td><select data-row="${i}" data-key="weekday" aria-label="${i+1}行目の曜日">${options(weekdays,r.weekday)}</select></td>
+    <td><div class="slot-stack"><select data-row="${i}" data-key="slot" aria-label="開始コマ">${options(slots,r.slot)}</select><select data-row="${i}" data-key="endSlot" aria-label="終了コマ">${options(slots,r.endSlot)}</select><label class="check-row"><input type="checkbox" data-row="${i}" data-key="allDay" ${r.allDay?'checked':''}>終日</label></div></td>
+    <td><input data-row="${i}" data-key="subject" value="${escapeHtml(r.subject)}" aria-label="${i+1}行目の教科名" placeholder="教科名・予定">${r.confidence!==null?`<small class="muted">AI信頼度 ${Math.round(Math.max(0,Math.min(1,r.confidence))*100)}%</small>`:''}</td>
+    <td><input data-row="${i}" data-key="items" value="${escapeHtml(r.items)}" aria-label="持ち物" placeholder="持ち物"></td>
+    <td><input data-row="${i}" data-key="homework" value="${escapeHtml(r.homework)}" aria-label="宿題" placeholder="宿題"></td>
+    <td><div class="import-details"><label>小テスト<input data-row="${i}" data-key="quiz" value="${escapeHtml(r.quiz)}" placeholder="小テスト"></label><label>場所<input data-row="${i}" data-key="location" value="${escapeHtml(r.location)}" placeholder="場所"></label><label>備考<input data-row="${i}" data-key="notes" value="${escapeHtml(r.notes)}" placeholder="備考"></label><label>忘れ物<input data-row="${i}" data-key="forgotten" value="${escapeHtml(r.forgotten)}" placeholder="忘れ物"></label></div></td>
+    <td><button class="remove-row" type="button" data-remove-row="${i}" aria-label="行を削除">×</button></td>
+  </tr>`).join('');
+  $$('[data-row]',$('#importRowsBody')).forEach(el=>{
+    const update=()=>{const i=Number(el.dataset.row), key=el.dataset.key;if(!importRows[i])return;importRows[i][key]=el.type==='checkbox'?el.checked:(key==='weekday'?Number(el.value):el.value);if(key==='slot' && (SLOT_INDEX[importRows[i].endSlot]??0)<(SLOT_INDEX[el.value]??0)){importRows[i].endSlot=el.value;renderImportTable();} };
+    el.addEventListener(el.type==='text'?'input':'change',update);
+  });
+  $$('[data-remove-row]',$('#importRowsBody')).forEach(b=>b.addEventListener('click',()=>{importRows.splice(Number(b.dataset.removeRow),1);renderImportTable();}));
+  $('#importRowCount').textContent=`${importRows.length}行`;
+}
+function proxyIsConfigured() {
+  return /^https:\/\//.test(GEMINI_PROXY_URL) && !GEMINI_PROXY_URL.includes('YOUR-WORKER') && !GEMINI_PROXY_URL.includes('YOUR-SUBDOMAIN');
+}
+function promptProxySetup(file) {
+  const body=`<p>Gemini解析は、APIキーを公開しないためCloudflare Worker経由で実行します。</p>
+    <p>HTML上部の <code>GEMINI_PROXY_URL</code> を、デプロイしたWorkerのURL（末尾 <code>/api/timetable</code>）に変更してください。</p>
+    <p class="field-help">Worker側にはSecret名 <code>gem_api</code> でGemini APIキーを設定します。APIキーをGitHub PagesのHTMLやGitリポジトリへ書き込まないでください。</p>`;
+  openModal('Gemini接続の設定',body,'<button class="btn" id="proxyUseTesseract">従来OCRを使う</button><button class="btn" data-close-modal>閉じる</button>',true);
+  $('#proxyUseTesseract').addEventListener('click',()=>{closeModal();handleImageSelectedWithTesseract(file);});
+}
+function prepareGeminiImage(file) {
+  return new Promise((resolve,reject)=>{
+    const objectUrl=URL.createObjectURL(file); const image=new Image();
+    image.onload=()=>{
+      try {
+        const maxSide=2800, scale=Math.min(1,maxSide/Math.max(image.naturalWidth,image.naturalHeight));
+        const canvas=document.createElement('canvas'); canvas.width=Math.max(1,Math.round(image.naturalWidth*scale)); canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+        const ctx=canvas.getContext('2d'); if(!ctx)throw new Error('Canvasが使用できません');
+        ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);
+        const dataUrl=canvas.toDataURL('image/jpeg',0.94); URL.revokeObjectURL(objectUrl);
+        resolve({preview:dataUrl,mimeType:'image/jpeg',base64:dataUrl.substring(dataUrl.indexOf(',')+1)});
+      } catch(e){URL.revokeObjectURL(objectUrl);reject(e);}
+    };
+    image.onerror=()=>{URL.revokeObjectURL(objectUrl);reject(new Error('画像ファイルを開けませんでした'));}; image.src=objectUrl;
+  });
+}
+function mapGeminiWeekday(value) {
+  if(Number.isInteger(Number(value)) && Number(value)>=0 && Number(value)<=6) return Number(value);
+  const v=String(value??'').replace(/曜日/g,'').trim(); const i=DAYS.indexOf(v); return i>=0?i:selectedDateObj().getDay();
+}
+function mapGeminiSlot(value, fallback='1') {
+  const v=String(value??'').trim().replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/第|限|時限|コマ/g,'').trim();
+  if(SLOTS.includes(v)) return v;
+  if(/朝|朝練|朝学習/.test(v)) return '朝';
+  if(/昼休|昼食|ランチ/.test(v)) return '昼休み';
+  if(/放課後|下校後/.test(v)) return '放課後';
+  const m=v.match(/[1-7]/); return m?m[0]:fallback;
+}
+async function runGeminiOCR(file) {
+  if(!proxyIsConfigured()){promptProxySetup(file);return;}
+  const runToken=++ocrRunToken;
+  openModal('Geminiで時間割を解析中',`<p>画像の色・罫線・曜日列・時限行・結合セルをまとめて解析しています。画像をGoogleのGemini APIに送信しています。</p><img class="import-preview" id="ocrPreview" alt="時間割画像のプレビュー"><div class="progress"><div id="ocrProgress" style="width:22%"></div></div><div id="ocrStatus" class="muted">画像を準備しています…</div><div id="ocrError" class="muted" style="color:#a33"></div>`,`<button class="btn" id="useTesseractFallback">従来OCRで再試行</button><button class="btn" data-close-modal>キャンセル</button>`,true);
+  $('#useTesseractFallback').addEventListener('click',()=>{closeModal();handleImageSelectedWithTesseract(file);});
+  try {
+    const prepared=await prepareGeminiImage(file); if(runToken!==ocrRunToken || !$('#ocrPreview'))return; $('#ocrPreview').src=prepared.preview;
+    $('#ocrStatus').textContent=`${geminiModel} で曜日・時限・結合セルを解析しています…`;
+    const prompt=`あなたは日本語の学校時間割画像を構造化データへ変換する専門家です。画像全体を拡大して見たつもりで、表の罫線、列見出し、行見出し、文字位置、背景色、またがるセルを慎重に読み取ってください。
+
+出力ルール:
+1. 返答は指定JSONスキーマに一致するデータだけにしてください。
+2. 週表示の表は列見出しから曜日、行見出しからコマを対応づけます。曜日が日月火水木金土なら weekday はそれぞれ 0,1,2,3,4,5,6 です。
+3. コマ名は「朝」「1」「2」「3」「4」「昼休み」「5」「6」「7」「放課後」に正規化します。画像に「1限」などと書かれていても slot は "1" にします。
+4. この画面で選択中の日は ${DAYS[selectedDateObj().getDay()]}曜日（${state.selectedDate}）です。画像が特定の日だけの予定表で曜日が明示されない場合はこの曜日を使ってください。週の列が判別できるなら選択中の日に固定せず画像の曜日を優先します。
+5. 空欄セルは出力しないでください。読めない教科名を推測で補わず、読める部分だけ記し confidence を低くしてください。confidence は0〜1。
+6. セル内に「持ち物:」「小テスト:」「場所:」「宿題:」「備考:」「忘れ物:」などが実際に書かれている場合だけ対応フィールドに分けてください。書いていない情報は空文字にします。
+7. 縦に複数コマを占める結合セルは1件だけ出力し、slotを最初のコマ、endSlotを最後のコマにしてください。朝から放課後までの終日予定は allDay=true、slot="朝"、endSlot="放課後" にします。通常のコマは allDay=false。
+8. 横に結合されたセルでは colSpan に結合列数を記録し、分からなければ1。教科カードの背景色は可能なら color に pink, blue, purple, yellow, green, gray, mint, cyan のいずれかで記録します。
+9. 認識順は曜日、開始コマの順にし、同じ曜日・コマに複数の予定があるときは両方を出力してください。
+10. readingNotes には境界が曖昧な箇所、曜日やコマを特定できない箇所を短く記してください。`;
+    const response=await fetch(GEMINI_PROXY_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      model:geminiModel, prompt, image:{mimeType:prepared.mimeType,data:prepared.base64}
+    })});
+    const payload=await response.json().catch(()=>({}));
+    if(runToken!==ocrRunToken)return;
+    if(!response.ok){const detail=payload?.error?.message||`HTTP ${response.status}`;throw new Error(detail);}
+    const output=(payload?.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('').trim();
+    if(!output)throw new Error('Geminiから結果が返りませんでした。画像のサイズやAPI利用上限を確認してください。');
+    const parsed=JSON.parse(output); if(!Array.isArray(parsed.lessons))throw new Error('返答の形式が時間割データではありませんでした。');
+    importRows=parsed.lessons.map(r=>{
+      let weekday=mapGeminiWeekday(r.weekday); let slot=mapGeminiSlot(r.slot,'1'); let endSlot=mapGeminiSlot(r.endSlot,slot); let allDay=Boolean(r.allDay);
+      if(allDay){slot='朝';endSlot='放課後';}
+      if((SLOT_INDEX[endSlot]??0)<(SLOT_INDEX[slot]??0))endSlot=slot;
+      return normalizeImportRow({...r,weekday,slot,endSlot,allDay,subject:String(r.subject??'').trim(),color:COLORS.includes(r.color)?r.color:'',confidence:Math.max(0,Math.min(1,Number(r.confidence)||0))});
+    }).filter(r=>r.subject||r.items||r.quiz||r.location||r.homework||r.notes||r.forgotten);
+    if(!importRows.length)throw new Error('時間割のコマを検出できませんでした。より鮮明な画像で試すか、従来OCRに切り替えてください。');
+    const noteText=Array.isArray(parsed.readingNotes)&&parsed.readingNotes.length?`AIの確認メモ：\n・${parsed.readingNotes.join('\n・')}`:`Geminiが${importRows.length}件のセルを検出しました。信頼度が低い行や結合セルを確認してください。`;
+    if($('#ocrStatus'))$('#ocrStatus').textContent='解析完了。編集画面を開いています…';
+    showImportEditor(noteText,prepared.preview,'gemini');
+  } catch(err) {
+    const status=$('#ocrStatus'), error=$('#ocrError');
+    if(status)status.textContent='Geminiの解析に失敗しました';
+    if(error)error.textContent=`${err?.message||err}。APIキー、モデルの利用可否、無料枠の利用上限、ネット接続を確認してください。「従来OCRで再試行」も使えます。`;
+    console.error('Gemini timetable import failed:',err);
+  }
+}
+async function handleImageSelected(file) {
+  if(!file)return;
+  if(!proxyIsConfigured()){promptProxySetup(file);return;}
+  await runGeminiOCR(file);
+}
+async function handleImageSelectedWithTesseract(file) {
+  if(!file)return;
+  const runToken=++ocrRunToken;
+  openModal('時間割画像を読み込み',`<p>従来OCRで画像の文字を認識します。認識結果は誤りを含む場合があるため、次の画面で曜日・コマ・教科名を確認してください。</p><img class="import-preview" id="ocrPreview" alt="読み込み画像のプレビュー"><div class="progress"><div id="ocrProgress"></div></div><div id="ocrStatus" class="muted">画像を準備しています…</div><div id="ocrError" class="muted" style="color:#a33"></div>`,`<button class="btn" data-close-modal>キャンセル</button>`,true);
+  try {
+    const processed=await preprocessImage(file); if(runToken!==ocrRunToken || !$('#ocrPreview'))return; $('#ocrPreview').src=processed.preview; $('#ocrStatus').textContent='Tesseract.jsを読み込んでいます…';
+    const Tesseract=await loadTesseract();
+    const worker=await Tesseract.createWorker('jpn+eng',1,{logger:message=>{if(message.status&&$('#ocrStatus'))$('#ocrStatus').textContent=`文字認識中：${message.status}`;if(typeof message.progress==='number'&&$('#ocrProgress'))$('#ocrProgress').style.width=`${Math.round(message.progress*100)}%`;}});
+    const result=await worker.recognize(processed.blob); await worker.terminate();
+    if(runToken!==ocrRunToken)return;
+    const text=result?.data?.text||''; importRows=guessImportRows(text); showImportEditor(text,processed.preview,'tesseract');
+  } catch(err) {
+    const errEl=$('#ocrError'); if(errEl) {errEl.textContent=`従来OCRの読み込みに失敗しました。インターネット接続を確認するか、手入力で登録してください。詳細：${err.message||err}`;$('#ocrStatus').textContent='読み込みに失敗しました';}
+  }
+}
+function showImportEditor(ocrText, preview, mode='tesseract') {
+  const slotHelp='曜日・開始/終了コマ・教科名・詳細を確認し、必要な箇所を修正してから登録してください。結合セルは開始コマと終了コマ、終日予定は「終日」で保持します。';
+  const notesBlock=ocrText?`<div class="notice-item" style="margin:10px 0;white-space:pre-line">${escapeHtml(ocrText)}</div>`:'';
+  const rawBlock=mode==='tesseract'?`<div class="field" style="margin:12px 0"><label for="ocrRawText">OCRの生テキスト（必要に応じて修正）</label><textarea id="ocrRawText" rows="5" placeholder="認識された文字がここに表示されます">${escapeHtml(ocrText)}</textarea><div style="display:flex;justify-content:flex-end;margin-top:5px"><button class="btn" id="rebuildRows">テキストから行を作り直す</button></div></div>`:`<p class="muted">Geminiが画像全体の表構造を解析しました。信頼度の低い行、曜日、結合セルは必ず確認してください。</p>${notesBlock}`;
+  const body=`<p class="muted">${slotHelp}</p>${preview?`<img class="import-preview" src="${preview}" alt="元画像">`:''}${rawBlock}<div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px"><strong>時間割エディタ</strong><span id="importRowCount" class="muted"></span></div><div class="editor-table-wrap"><table class="editor-table"><thead><tr><th>#</th><th>曜日</th><th>開始・終了コマ</th><th>教科名・予定</th><th>持ち物</th><th>宿題</th><th>小テスト・場所・備考・忘れ物</th><th></th></tr></thead><tbody id="importRowsBody"></tbody></table></div><div style="margin-top:10px"><button class="btn" id="addImportRow">＋ 行を追加</button></div>`;
+  openModal('OCR認識結果を編集',body,`<button class="btn" data-close-modal>キャンセル</button><button class="btn primary" id="saveImportedRows">確認した内容を登録</button>`);
+  renderImportTable();
+  if($('#rebuildRows'))$('#rebuildRows').addEventListener('click',()=>{importRows=guessImportRows($('#ocrRawText').value);renderImportTable();toast('OCRテキストから行を作り直しました');});
+  $('#addImportRow').addEventListener('click',()=>{importRows.push({weekday:selectedDateObj().getDay(),slot:'1',endSlot:'1',subject:'',items:'',quiz:'',location:'',homework:'',notes:'',forgotten:'',allDay:false,colSpan:1});renderImportTable();});
+  $('#saveImportedRows').addEventListener('click',()=>{
+    const valid=importRows.map(normalizeImportRow).filter(r=>String(r.subject||'').trim()||r.items||r.quiz||r.location||r.homework||r.notes||r.forgotten);
+    if(!valid.length){toast('登録する教科名や内容がありません');return;}
+    valid.forEach(r=>{
+      let slot=SLOTS.includes(r.slot)?r.slot:'1'; let endSlot=SLOTS.includes(r.endSlot)?r.endSlot:slot; const allDay=Boolean(r.allDay);
+      if(allDay){slot='朝';endSlot='放課後';}
+      if((SLOT_INDEX[endSlot]??0)<(SLOT_INDEX[slot]??0))endSlot=slot;
+      state.events.push({id:makeId(),weekday:Number(r.weekday),dateKey:null,slot,endSlot,subject:String(r.subject||'（予定）').trim(),color:COLORS.includes(r.color)?r.color:COLORS[(SLOT_INDEX[slot]||0)%COLORS.length],items:r.items||'',quiz:r.quiz||'',location:r.location||'',homework:r.homework||'',notes:r.notes||'',forgotten:r.forgotten||'',allDay,colSpan:Math.max(1,Math.min(7,Number(r.colSpan)||1)),rowSpan:Math.max(1,(SLOT_INDEX[endSlot]??0)-(SLOT_INDEX[slot]??0)+1)});
+    });
+    closeModal();state.view='day';persist();render();toast(`${valid.length}件を時間割に登録しました`);
+  });
+}
+// PWA manifest is generated inline. Service Worker must still be delivered as a same-origin JS file by the host.
+const manifest = {name:'時間割ノート',short_name:'時間割',start_url:'.',display:'standalone',background_color:'#f5f6fc',theme_color:'#f5f6fc',description:'時間割と宿題・持ち物の管理'};
+$('#app-manifest').href='data:application/manifest+json;charset=utf-8,'+encodeURIComponent(JSON.stringify(manifest));
+const SERVICE_WORKER_SOURCE = `self.addEventListener('install',event=>event.waitUntil(caches.open('timetable-shell-v1').then(cache=>cache.addAll(['./']))));self.addEventListener('fetch',event=>{event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request).then(response=>{const copy=response.clone();caches.open('timetable-shell-v1').then(cache=>cache.put(event.request,copy));return response}).catch(()=>caches.match('./'))))});`;
+// file:// では登録不可。HTTP(S)で service-worker.js を同じフォルダから配信した場合に自動登録します。
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')) {
+  navigator.serviceWorker.register('./service-worker.js').catch(err => console.info('PWAキャッシュは未設定です。単一HTMLとしての通常利用は可能です。', err));
+}
+
+loadSavedState(); applyLogo(); render();
+$('#menuBtn').addEventListener('click',openDrawer);
+$('#drawerOverlay').addEventListener('click',e=>{if(e.target===$('#drawerOverlay'))closeDrawer();});
+$('#monthBtn').addEventListener('click',openDatePicker);
+$('#todayBtn').addEventListener('click',()=>{state.selectedDate=dateKey(new Date());render();});
+$('#prevDay').addEventListener('click',()=>{const d=selectedDateObj();d.setDate(d.getDate()-1);state.selectedDate=dateKey(d);render();});
+$('#nextDay').addEventListener('click',()=>{const d=selectedDateObj();d.setDate(d.getDate()+1);state.selectedDate=dateKey(d);render();});
+$('#addBtn').addEventListener('click',()=>openEventEditor());
+$('#searchBtn').addEventListener('click',()=>{$('#searchStrip').classList.toggle('open');if($('#searchStrip').classList.contains('open'))$('#searchInput').focus();else {$('#searchInput').value='';render();}});
+$('#searchInput').addEventListener('input',()=>{
+  const q=$('#searchInput').value.trim().toLocaleLowerCase(); if(!q){render();return;}
+  const matches=sameDayEvents(selectedDateObj()).filter(e=>eventText(e).toLocaleLowerCase().includes(q));
+  $('#headingTitle').textContent=`検索結果：${matches.length}件`;
+  $('#viewRoot').innerHTML=matches.length?`<div style="display:grid;gap:6px">${matches.map(e=>eventCardHTML(e,true)).join('')}</div>`:'<div class="empty-state">一致する時間割がありません。</div>';
+});
+$('#alertsBtn').addEventListener('click',openAlerts);$('#settingsBtn').addEventListener('click',openSettings);$('#drawerSettingsBtn').addEventListener('click',()=>{closeDrawer();openSettings();});$('#loadTimetableBtn').addEventListener('click',openImportChooser);
+$$('.menu-item[data-view]').forEach(b=>b.addEventListener('click',()=>{state.view=b.dataset.view;closeDrawer();render();}));
+$('#viewRoot').addEventListener('click',e=>{const card=e.target.closest('[data-event-id]');if(card){openEventEditor(card.dataset.eventId);return;}const pick=e.target.closest('[data-pick-date]');if(pick){state.selectedDate=pick.dataset.pickDate;state.view='day';render();}});
+$('#modalOverlay').addEventListener('click',e=>{if(e.target===$('#modalOverlay'))closeModal();});
+document.addEventListener('click',e=>{if(e.target.closest('[data-close-modal]'))closeModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeDrawer();}});
+$('#imageInput').addEventListener('change',e=>{const file=e.target.files?.[0]; e.target.value=''; if(file)handleImageSelected(file);});
+$('#jsonInput').addEventListener('change',e=>{const file=e.target.files?.[0];e.target.value='';if(file)importJsonFile(file);});
+checkShareUrl();
+</script>
+</body>
+</html>
